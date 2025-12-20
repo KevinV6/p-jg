@@ -1,0 +1,97 @@
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./app/**/*.{js,jsx,ts,tsx}",
+    "./components/**/*.{js,jsx,ts,tsx}",
+    "./screens/**/*.{js,jsx,ts,tsx}",
+  ],
+  presets: [require("nativewind/preset")],
+  theme: {
+    extend: {
+      colors: {
+        // Paleta de Gralis - Café y tonos cálidos
+        primary: {
+          DEFAULT: '#402612',
+          50: '#F6EBD7',
+          100: '#E8D4BB',
+          200: '#D9BD9F',
+          300: '#CAA683',
+          400: '#BB8F67',
+          500: '#8B5A3C',
+          600: '#402612',
+          700: '#3d2b1f',
+          800: '#2a1d15',
+          900: '#1a110c',
+        },
+        secondary: {
+          DEFAULT: '#8B5A3C',
+          50: '#F6EBD7',
+          100: '#E8D4BB',
+          200: '#D9BD9F',
+          300: '#CAA683',
+          400: '#BB8F67',
+          500: '#8B5A3C',
+          600: '#6d4830',
+          700: '#4f3623',
+          800: '#312316',
+          900: '#13100A',
+        },
+        accent: {
+          DEFAULT: '#F6EBD7',
+          50: '#FFFFFF',
+          100: '#FEFDFB',
+          200: '#FBF8F3',
+          300: '#F9F4EC',
+          400: '#F6EBD7',
+          500: '#EDD8BC',
+          600: '#E4C5A1',
+          700: '#DBB286',
+          800: '#D29F6B',
+          900: '#C98C50',
+        },
+        success: '#16A34A',
+        warning: '#F97316',
+        danger: '#EF4444',
+        info: '#3B82F6',
+        
+        // Modo claro - Estilo Gralis
+        light: {
+          background: '#F6EBD7',
+          surface: '#FFFFFF',
+          surfaceAlt: '#F0E5D1',
+          card: '#FFFFFF',
+          cardAlt: '#F8F4EC',
+          text: '#3d2b1f',
+          textSecondary: '#51453C',
+          textTertiary: '#6d5f56',
+          border: '#E8D4BB',
+          borderLight: '#F0E5D1',
+          shadow: 'rgba(64, 38, 18, 0.1)',
+        },
+        
+        // Modo oscuro - Estilo Gralis oscuro
+        dark: {
+          background: '#1a110c',
+          surface: '#2a1d15',
+          surfaceAlt: '#3d2b1f',
+          card: '#2a1d15',
+          cardAlt: '#3d2b1f',
+          text: '#F6EBD7',
+          textSecondary: '#E8D4BB',
+          textTertiary: '#D9BD9F',
+          border: '#51453C',
+          borderLight: '#3d2b1f',
+          shadow: 'rgba(139, 90, 60, 0.2)',
+          glow: 'rgba(139, 90, 60, 0.3)',
+        },
+      },
+      fontFamily: {
+        poppins: ['Poppins-Regular'],
+        'poppins-medium': ['Poppins-Medium'],
+        'poppins-semibold': ['Poppins-SemiBold'],
+        'poppins-bold': ['Poppins-Bold'],
+      },
+    },
+  },
+  plugins: [],
+};

@@ -1,0 +1,1 @@
+export { PedidoCard } from './PedidoCard';
