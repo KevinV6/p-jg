@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
+import { useNavigationType } from '@/hooks/use-navigation-type';
 
 interface EmptyStateProps {
   icon: string;
@@ -35,16 +36,26 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 interface FloatingActionButtonProps {
   onPress: () => void;
   icon?: string;
+  /** Si está en una pantalla con tab bar (ajusta la posición del botón) */
+  hasTabBar?: boolean;
 }
 
 export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   onPress,
   icon = 'add',
+  hasTabBar = true,
 }) => {
+  const { tabBarPaddingBottom } = useNavigationType();
+  
+  // Calcular la posición bottom del botón
+  // Si tiene tab bar, debe estar por encima del tab bar
+  const bottomPosition = hasTabBar ? 65 + tabBarPaddingBottom + 16 : 20;
+  
   return (
     <TouchableOpacity
-      className="absolute right-5 bottom-5 w-14 h-14 rounded-2xl justify-center items-center bg-[#402612]"
+      className="absolute right-5 w-14 h-14 rounded-2xl justify-center items-center bg-[#402612]"
       style={{
+        bottom: bottomPosition,
         shadowColor: '#402612',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.25,
