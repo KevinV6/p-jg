@@ -1,8 +1,16 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigationType } from '@/hooks/use-navigation-type';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
+  const { tabBarElevation, tabBarPaddingBottom, hasVirtualButtons, isGestural } = useNavigationType();
+  const insets = useSafeAreaInsets();
+  
+  // Calcular altura total del tab bar incluyendo zona segura
+  const tabBarHeight = 65 + tabBarPaddingBottom;
+  
   return (
     <Tabs
       screenOptions={{
@@ -13,14 +21,20 @@ export default function TabLayout() {
           backgroundColor: '#FFFFFF',
           borderTopColor: '#E5E5E5',
           borderTopWidth: 1,
-          height: 65,
-          paddingBottom: 8,
+          height: tabBarHeight,
+          paddingBottom: tabBarPaddingBottom, // Padding dinámico según navegación
           paddingTop: 8,
-          elevation: 8,
+          // Elevación diferenciada según tipo de navegación
+          elevation: tabBarElevation,
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
+          shadowOffset: { width: 0, height: hasVirtualButtons ? -3 : -2 },
+          shadowOpacity: hasVirtualButtons ? 0.15 : 0.1,
+          shadowRadius: hasVirtualButtons ? 12 : 8,
+          // Asegurar que respete la zona segura inferior
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
         },
         tabBarLabelStyle: {
           fontSize: 11,

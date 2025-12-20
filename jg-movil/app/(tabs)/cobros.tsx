@@ -88,7 +88,7 @@ export default function CobrosScreen() {
   );
 
   return (
-    <ScreenContainer safeTop={false}>
+    <ScreenContainer safeTop={false} hasTabBar={true}>
       <AppHeader title="Cobros" onNotificationPress={() => {}} />
 
       <CobroSummaryCard

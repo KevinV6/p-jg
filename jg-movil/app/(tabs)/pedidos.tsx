@@ -20,7 +20,7 @@ export default function PedidosScreen() {
   );
 
   return (
-    <ScreenContainer safeTop={false}>
+    <ScreenContainer safeTop={false} hasTabBar={true}>
       <AppHeader title="Pedidos" onNotificationPress={() => {}} />
       <FlatList
         data={pedidos}

@@ -42,7 +42,7 @@ export default function HomeScreen() {
   }, []);
 
   return (
-    <ScreenContainer safeTop={false}>
+    <ScreenContainer safeTop={false} hasTabBar={true}>
       <AppHeader title="Inicio" onNotificationPress={() => {}} />
 
       <ScrollView

@@ -66,7 +66,7 @@ export default function InventarioScreen() {
   );
 
   return (
-    <ScreenContainer safeTop={false}>
+    <ScreenContainer safeTop={false} hasTabBar={true}>
       <AppHeader title="Inventario" onNotificationPress={() => {}} />
 
       <SearchBar

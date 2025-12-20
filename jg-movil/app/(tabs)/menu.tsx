@@ -82,7 +82,7 @@ export default function MenuScreen() {
   );
 
   return (
-    <ScreenContainer>
+    <ScreenContainer hasTabBar={true}>
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         {/* Header del perfil */}
         <View className="p-6 mb-2">
