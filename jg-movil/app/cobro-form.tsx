@@ -378,6 +378,7 @@ export default function CobroFormScreen() {
             carrito={carrito}
             onAddToCart={handleAddToCart}
             onRemoveFromCart={handleRemoveFromCart}
+            showInternalTotal={false}
           />
         </ScrollView>
 

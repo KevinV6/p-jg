@@ -1,12 +1,12 @@
 import { useInventario } from '@/contexts/InventarioContext';
 import { OpcionVariante, Producto, ProductoUnidad } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
 import React, { useEffect, useState } from 'react';
 import {
     FlatList,
     Image,
     Modal,
+    ScrollView,
     Text,
     TextInput,
     TouchableOpacity,
@@ -32,6 +32,7 @@ interface ProductSelectorProps {
   onRemoveFromCart: (index: number) => void;
   title?: string;
   buttonText?: string;
+  showInternalTotal?: boolean; // Para controlar si se muestra el total interno
 }
 
 export default function ProductSelector({
@@ -40,11 +41,13 @@ export default function ProductSelector({
   onRemoveFromCart,
   title = "Agregar Producto",
   buttonText = "Seleccionar Producto",
+  showInternalTotal = true, // Por defecto mostrar el total
 }: ProductSelectorProps) {
   const { productos } = useInventario();
 
   const [showProductSelector, setShowProductSelector] = useState(false);
   const [showVariantSelector, setShowVariantSelector] = useState(false);
+  const [showUnidadModal, setShowUnidadModal] = useState(false); // Modal para unidades
   const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null);
   const [selectedVariante, setSelectedVariante] = useState<OpcionVariante | null>(null);
   const [selectedUnidad, setSelectedUnidad] = useState<ProductoUnidad | null>(null);
@@ -79,24 +82,69 @@ export default function ProductSelector({
     }
   };
 
-  const handleSelectVariante = (opcionVariante: OpcionVariante) => {
+  const handleSelectVariante = async (opcionVariante: OpcionVariante) => {
+    console.log('[ProductSelector] Variante seleccionada:', opcionVariante);
+    console.log('[ProductSelector] Precios de variante:', opcionVariante.precios);
+    
     setSelectedVariante(opcionVariante);
     setShowVariantSelector(false);
     
     // Seleccionar la primera unidad de medida automáticamente
     if (selectedProduct?.unidades && selectedProduct.unidades.length > 0) {
       setSelectedUnidad(selectedProduct.unidades[0]);
-      setPrecioEditado(selectedProduct.unidades[0].precio.toString());
+      console.log('[ProductSelector] Primera unidad:', selectedProduct.unidades[0]);
+      
+      // Buscar precio específico de esta variante si existe en los datos del producto
+      let precioEncontrado = false;
+      
+      if (opcionVariante.precios && opcionVariante.precios.length > 0 && selectedProduct.unidades) {
+        console.log('[ProductSelector] Buscando precio para productounidadid:', selectedProduct.unidades[0].idproductounidad);
+        const precioVariante = opcionVariante.precios.find(
+          p => p.productounidadid === selectedProduct.unidades![0].idproductounidad
+        );
+        
+        console.log('[ProductSelector] Precio encontrado:', precioVariante);
+        
+        if (precioVariante) {
+          setPrecioEditado(precioVariante.precio.toString());
+          precioEncontrado = true;
+        }
+      }
+      
+      // Si no encontró precio de variante, usar precio base
+      if (!precioEncontrado) {
+        console.log('[ProductSelector] Usando precio base:', selectedProduct.unidades[0].precio);
+        setPrecioEditado(selectedProduct.unidades[0].precio.toString());
+      }
+      
       setCantidad('1');
     }
   };
 
-  const handleChangeUnidad = (unidadId: number) => {
+  const handleChangeUnidad = async (unidadId: number) => {
     if (selectedProduct?.unidades) {
       const unidad = selectedProduct.unidades.find(u => u.idproductounidad === unidadId);
       if (unidad) {
         setSelectedUnidad(unidad);
-        setPrecioEditado(unidad.precio.toString());
+        
+        // Si hay variante seleccionada, buscar su precio específico para esta unidad
+        let precioEncontrado = false;
+        
+        if (selectedVariante?.precios && selectedVariante.precios.length > 0) {
+          const precioVariante = selectedVariante.precios.find(
+            p => p.productounidadid === unidadId
+          );
+          
+          if (precioVariante) {
+            setPrecioEditado(precioVariante.precio.toString());
+            precioEncontrado = true;
+          }
+        }
+        
+        // Si no encontró precio de variante, usar precio base
+        if (!precioEncontrado) {
+          setPrecioEditado(unidad.precio.toString());
+        }
       }
     }
   };
@@ -138,6 +186,19 @@ export default function ProductSelector({
     return carrito.reduce((sum, item) => sum + item.subtotal, 0);
   };
 
+  // Obtener el precio correcto para una unidad (considerando la variante seleccionada)
+  const getPrecioParaUnidad = (unidad: ProductoUnidad): number => {
+    if (selectedVariante?.precios && selectedVariante.precios.length > 0) {
+      const precioVariante = selectedVariante.precios.find(
+        p => p.productounidadid === unidad.idproductounidad
+      );
+      if (precioVariante) {
+        return precioVariante.precio;
+      }
+    }
+    return unidad.precio;
+  };
+
   return (
     <>
       {/* Selector de Producto */}
@@ -160,9 +221,9 @@ export default function ProductSelector({
       {selectedProduct && selectedUnidad && (
         <View className="bg-white rounded-xl p-4 mb-4 border border-[#8B5A3C]">
           <View className="flex-row items-center mb-3">
-            {(selectedVariante?.imagenvariante || selectedProduct.imagen || selectedProduct.imagenproducto) && (
+            {(selectedVariante?.imagenvariante || selectedProduct.imagen) && (
               <Image
-                source={{ uri: selectedVariante?.imagenvariante || selectedProduct.imagen || selectedProduct.imagenproducto }}
+                source={{ uri: selectedVariante?.imagenvariante || selectedProduct.imagen }}
                 className="w-16 h-16 rounded-lg mr-3"
               />
             )}
@@ -181,27 +242,21 @@ export default function ProductSelector({
             </View>
           </View>
 
-          {/* Selector de Unidad de Medida */}
+          {/* Selector de Unidad de Medida - Modal estilizado */}
           {selectedProduct.unidades && selectedProduct.unidades.length > 1 && (
             <View className="mb-3">
               <Text className="text-sm font-poppins-semibold text-[#402612] mb-1">
                 Unidad de Medida
               </Text>
-              <View className="bg-[#F6EBD7] border border-[#8B5A3C] rounded-lg overflow-hidden">
-                <Picker
-                  selectedValue={selectedUnidad.idproductounidad}
-                  onValueChange={(value) => handleChangeUnidad(value)}
-                  style={{ height: 50, color: '#402612' }}
-                >
-                  {selectedProduct.unidades.map((u) => (
-                    <Picker.Item
-                      key={u.idproductounidad}
-                      label={`${u.unidad?.nombre} (${u.unidad?.abreviatura}) - Bs. ${u.precio.toFixed(2)}`}
-                      value={u.idproductounidad}
-                    />
-                  ))}
-                </Picker>
-              </View>
+              <TouchableOpacity
+                onPress={() => setShowUnidadModal(true)}
+                className="bg-[#F6EBD7] border border-[#8B5A3C] rounded-xl px-4 py-3 flex-row justify-between items-center"
+              >
+                <Text className="text-base font-poppins-semibold text-[#402612]">
+                  {selectedUnidad.unidad?.nombre} ({selectedUnidad.unidad?.abreviatura}) - Bs. {getPrecioParaUnidad(selectedUnidad).toFixed(2)}
+                </Text>
+                <Ionicons name="chevron-down" size={20} color="#8B5A3C" />
+              </TouchableOpacity>
             </View>
           )}
 
@@ -271,9 +326,9 @@ export default function ProductSelector({
               key={index}
               className="bg-white rounded-xl p-3 mb-2 flex-row items-center border border-[#E5E5E5]"
             >
-              {(item.producto.imagen || item.producto.imagenproducto) && (
+              {(item.opcionvariante?.imagenvariante || item.producto.imagen) && (
                 <Image
-                  source={{ uri: item.producto.imagen || item.producto.imagenproducto }}
+                  source={{ uri: item.opcionvariante?.imagenvariante || item.producto.imagen }}
                   className="w-14 h-14 rounded-lg mr-3"
                 />
               )}
@@ -307,17 +362,73 @@ export default function ProductSelector({
             </View>
           ))}
 
-          {/* Total */}
-          <View className="bg-[#402612] rounded-xl p-4 mt-2">
-            <View className="flex-row justify-between items-center">
-              <Text className="text-lg font-poppins-bold text-[#F6EBD7]">Total:</Text>
-              <Text className="text-2xl font-poppins-black text-[#F6EBD7]">
-                Bs. {calcularTotal().toFixed(2)}
-              </Text>
+          {/* Total - Solo se muestra si showInternalTotal es true */}
+          {showInternalTotal && (
+            <View className="bg-[#402612] rounded-xl p-4 mt-2">
+              <View className="flex-row justify-between items-center">
+                <Text className="text-lg font-poppins-bold text-[#F6EBD7]">Total:</Text>
+                <Text className="text-2xl font-poppins-black text-[#F6EBD7]">
+                  Bs. {calcularTotal().toFixed(2)}
+                </Text>
+              </View>
             </View>
-          </View>
+          )}
         </View>
       )}
+
+      {/* Modal Selector de Unidad de Medida */}
+      <Modal
+        visible={showUnidadModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowUnidadModal(false)}
+      >
+        <View className="flex-1 bg-black/50 justify-center items-center px-6">
+          <View className="bg-[#F6EBD7] rounded-2xl w-full max-w-sm max-h-[60%]">
+            <View className="bg-[#402612] rounded-t-2xl px-4 py-4 flex-row items-center justify-between">
+              <Text className="text-lg font-poppins-bold text-[#F6EBD7]">
+                Seleccionar Unidad
+              </Text>
+              <TouchableOpacity onPress={() => setShowUnidadModal(false)}>
+                <Ionicons name="close" size={24} color="#F6EBD7" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView className="max-h-80">
+              {selectedProduct?.unidades?.map((unidad) => {
+                const precioMostrar = getPrecioParaUnidad(unidad);
+                const isSelected = selectedUnidad?.idproductounidad === unidad.idproductounidad;
+                
+                return (
+                  <TouchableOpacity
+                    key={unidad.idproductounidad}
+                    onPress={() => {
+                      handleChangeUnidad(unidad.idproductounidad);
+                      setShowUnidadModal(false);
+                    }}
+                    className={`px-4 py-4 border-b border-gray-200 flex-row justify-between items-center ${
+                      isSelected ? 'bg-[#402612]/10' : ''
+                    }`}
+                  >
+                    <View className="flex-1">
+                      <Text className={`text-base font-poppins-semibold ${
+                        isSelected ? 'text-[#402612]' : 'text-[#3d2b1f]'
+                      }`}>
+                        {unidad.unidad?.nombre} ({unidad.unidad?.abreviatura})
+                      </Text>
+                      <Text className="text-lg font-poppins-bold text-[#8B5A3C]">
+                        Bs. {precioMostrar.toFixed(2)}
+                      </Text>
+                    </View>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={24} color="#402612" />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* Modal Selector de Productos */}
       <Modal
@@ -345,9 +456,9 @@ export default function ProductSelector({
                   onPress={() => handleSelectProduct(item)}
                   className="bg-white mx-4 my-2 rounded-xl p-3 flex-row items-center border border-[#E5E5E5]"
                 >
-                  {(item.imagen || item.imagenproducto) && (
+                  {item.imagen && (
                     <Image
-                      source={{ uri: item.imagen || item.imagenproducto }}
+                      source={{ uri: item.imagen }}
                       className="w-16 h-16 rounded-lg mr-3"
                     />
                   )}
@@ -400,9 +511,9 @@ export default function ProductSelector({
                         source={{ uri: item.imagenvariante }}
                         className="w-12 h-12 rounded-lg mr-3"
                       />
-                    ) : (selectedProduct.imagen || selectedProduct.imagenproducto) && (
+                    ) : selectedProduct.imagen && (
                       <Image
-                        source={{ uri: selectedProduct.imagen || selectedProduct.imagenproducto }}
+                        source={{ uri: selectedProduct.imagen }}
                         className="w-12 h-12 rounded-lg mr-3"
                       />
                     )}

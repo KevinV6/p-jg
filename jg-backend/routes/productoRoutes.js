@@ -7,6 +7,9 @@ const { uploadSingle } = require('../config/storage');
 router.use(authMiddleware);
 
 router.get('/', productoController.getAll);
+router.get('/precios-variante', productoController.getPreciosVariante);
+router.get('/variantes-catalogo/search', productoController.searchVariantesCatalogo);
+router.get('/opciones-catalogo/search', productoController.searchOpcionesCatalogo);
 router.get('/:id', productoController.getById);
 router.post('/', productoController.create);
 router.put('/:id', productoController.update);

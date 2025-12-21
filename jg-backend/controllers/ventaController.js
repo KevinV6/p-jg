@@ -39,7 +39,12 @@ const getAll = async (req, res) => {
             precio,
             unidad:unidadid(idunidad, nombre, abreviatura)
           ),
-          opcionvariante:opcionvarianteid(idopcionvariante, nombreopcionvariante)
+          opcionvariante:opcionvarianteid(
+            idopcionvariante, 
+            nombreopcionvariante,
+            imagenvariante,
+            variante:varianteid(idvariante, nombrevariante)
+          )
         )
       `, { count: 'exact' })
       .eq('estado', 1)
@@ -115,7 +120,12 @@ const getById = async (req, res) => {
             precio,
             unidad:unidadid(idunidad, nombre, abreviatura)
           ),
-          opcionvariante:opcionvarianteid(idopcionvariante, nombreopcionvariante, imagenvariante)
+          opcionvariante:opcionvarianteid(
+            idopcionvariante, 
+            nombreopcionvariante, 
+            imagenvariante,
+            variante:varianteid(idvariante, nombrevariante)
+          )
         )
       `)
       .eq('idventa', id)
@@ -163,7 +173,12 @@ const getByFolio = async (req, res) => {
             precio,
             unidad:unidadid(idunidad, nombre, abreviatura)
           ),
-          opcionvariante:opcionvarianteid(idopcionvariante, nombreopcionvariante)
+          opcionvariante:opcionvarianteid(
+            idopcionvariante, 
+            nombreopcionvariante,
+            imagenvariante,
+            variante:varianteid(idvariante, nombrevariante)
+          )
         )
       `)
       .eq('folio', folio)

@@ -1,7 +1,7 @@
 import { supabase } from '@/config/supabase';
 import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
-type TableName = 'producto' | 'venta' | 'cobro' | 'pedido' | 'cliente' | 'variante' | 'opcionvariante';
+type TableName = 'producto' | 'venta' | 'cobro' | 'pedido' | 'cliente' | 'variante' | 'opcionvariante' | 'producto_variante_opcion' | 'precio_variante' | 'variante_catalogo' | 'opcion_catalogo';
 type EventType = 'INSERT' | 'UPDATE' | 'DELETE' | '*';
 
 interface SubscriptionConfig {

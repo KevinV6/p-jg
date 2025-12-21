@@ -122,10 +122,14 @@ export const InventarioProvider = ({ children }: { children: ReactNode }) => {
 
       const response = await productoService.update(id, productoData);
 
-      if (response.success && response.data) {
-        setProductos(prev =>
-          prev.map(p => p.idproducto === id ? response.data! : p)
-        );
+      if (response.success) {
+        // Volver a cargar el producto completo desde el backend para obtener todos los datos actualizados
+        const productoActualizado = await getProductoById(id);
+        if (productoActualizado) {
+          setProductos(prev =>
+            prev.map(p => p.idproducto === id ? productoActualizado : p)
+          );
+        }
         return true;
       }
 
@@ -220,9 +224,9 @@ export const InventarioProvider = ({ children }: { children: ReactNode }) => {
     loadCategorias();
     loadUnidades();
 
-    // Suscribirse a cambios en tiempo real en la tabla producto
+    // Suscribirse a cambios en tiempo real en las tablas de productos y variantes
     const channelIds = realtimeService.subscribeToMultiple(
-      ['producto', 'variante', 'opcionvariante'],
+      ['producto', 'variante', 'opcionvariante', 'producto_variante_opcion', 'precio_variante'],
       (table, payload) => {
         console.log(`[InventarioContext] Cambio detectado en ${table}:`, payload.eventType);
         

@@ -134,6 +134,43 @@ class ProductoService {
   async deleteUnidad(id: number) {
     return api.delete(`/catalogo/unidades/${id}`);
   }
+
+  // Buscar variantes del catálogo (autocompletado)
+  async searchVariantesCatalogo(query: string = '') {
+    const params = new URLSearchParams();
+    if (query) params.append('q', query);
+    return api.get<Array<{ idvariantecatalogo: number; nombrevariante: string; estado: number }>>(`/productos/variantes-catalogo/search?${params.toString()}`);
+  }
+
+  // Buscar opciones del catálogo (autocompletado)
+  async searchOpcionesCatalogo(varianteid: number, query: string = '') {
+    const params = new URLSearchParams();
+    params.append('varianteid', String(varianteid));
+    if (query) params.append('q', query);
+    return api.get<Array<{ idopcioncatalogo: number; nombreopcion: string; variantecatalogoid: number; estado: number }>>(`/productos/opciones-catalogo/search?${params.toString()}`);
+  }
+
+  // Obtener precios de una opción variante específica
+  async getPreciosVariante(productoid: number, opcionvarianteid: number) {
+    const params = new URLSearchParams();
+    params.append('productoid', String(productoid));
+    params.append('opcionvarianteid', String(opcionvarianteid));
+    return api.get<Array<{
+      idpreciovariante: number;
+      precio: number;
+      productounidadid: number;
+      producto_unidad: {
+        idproductounidad: number;
+        unidadid: number;
+        precio: number;
+        unidad: {
+          idunidad: number;
+          nombre: string;
+          abreviatura: string;
+        }
+      }
+    }>>(`/productos/precios-variante?${params.toString()}`);
+  }
 }
 
 export const productoService = new ProductoService();

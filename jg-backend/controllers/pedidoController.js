@@ -23,6 +23,12 @@ const getAll = async (req, res) => {
             idproducto,
             nombreproducto,
             imagen
+          ),
+          opcionvariante:opcionvarianteid (
+            idopcionvariante,
+            nombreopcionvariante,
+            imagenvariante,
+            variante:varianteid(idvariante, nombrevariante)
           )
         )
       `, { count: 'exact' });
@@ -89,6 +95,12 @@ const getById = async (req, res) => {
             nombreproducto,
             imagen,
             descripcion
+          ),
+          opcionvariante:opcionvarianteid (
+            idopcionvariante,
+            nombreopcionvariante,
+            imagenvariante,
+            variante:varianteid(idvariante, nombrevariante)
           )
         )
       `)

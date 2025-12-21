@@ -45,7 +45,7 @@ interface Variante {
 export default function ProductoFormScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { productos, categorias, unidades: unidadesMedida, addProducto, updateProducto, isLoading } = useInventario();
+  const { productos, categorias, unidades: unidadesMedida, addProducto, updateProducto, getProductoById, isLoading } = useInventario();
   const { showError, showWarning, showSuccess, AlertComponent } = useCustomAlert();
   const isEditing = !!params.id;
 
@@ -61,49 +61,86 @@ export default function ProductoFormScreen() {
   const [showUnidadModal, setShowUnidadModal] = useState(false);
   const [unidadModalIndex, setUnidadModalIndex] = useState<number>(0);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Estados para autocompletado de variantes
+  const [varianteSugerencias, setVarianteSugerencias] = useState<Array<{idvariantecatalogo: number, nombrevariante: string}>>([]);
+  const [showVarianteSugerencias, setShowVarianteSugerencias] = useState<{[key: number]: boolean}>({});
+  const [varianteQuery, setVarianteQuery] = useState<{[key: number]: string}>({});
+  
+  // Estados para autocompletado de opciones
+  const [opcionSugerencias, setOpcionSugerencias] = useState<{[key: string]: Array<{idopcioncatalogo: number, nombreopcion: string}>}>({});
+  const [showOpcionSugerencias, setShowOpcionSugerencias] = useState<{[key: string]: boolean}>({});
+  const [opcionQuery, setOpcionQuery] = useState<{[key: string]: string}>({});
 
   useEffect(() => {
-    if (isEditing) {
-      const producto = productos.find(p => p.idproducto === Number(params.id));
-      if (producto) {
-        setNombre(producto.nombreproducto);
-        setDescripcion(producto.descripcion || '');
-        setCategoriaId(producto.categoriaid);
-        setImagen(producto.imagen);
-        setImagenOriginal(producto.imagen); // Guardar imagen original para comparar
+    const cargarProducto = async () => {
+      if (isEditing) {
+        // Siempre recargar el producto desde la API para obtener datos actualizados
+        const producto = await getProductoById(Number(params.id));
         
-        if (producto.unidades && producto.unidades.length > 0) {
-          setUnidades(producto.unidades.map(u => ({
-            // El backend puede traer unidadid directo o dentro de unidad.idunidad
-            unidadid: u.unidadid || u.unidad?.idunidad || 0,
-            precio: u.precio.toString(),
-          })));
-        }
-
-        if (producto.variantes && producto.variantes.length > 0) {
-          setShowVariantes(true);
-          // Cargar variantes con precios individuales por opción
-          const unidadesActuales = producto.unidades?.map(u => ({
-            unidadid: u.unidadid || u.unidad?.idunidad || 0,
-            precio: u.precio.toString(),
-          })) || [];
+        if (producto) {
+          setNombre(producto.nombreproducto);
+          setDescripcion(producto.descripcion || '');
+          setCategoriaId(producto.categoriaid);
+          setImagen(producto.imagen);
+          setImagenOriginal(producto.imagen); // Guardar imagen original para comparar
           
-          setVariantes(producto.variantes.map(v => ({
-            nombre: v.nombrevariante,
-            opciones: v.opciones?.map(o => ({
-              nombre: o.nombreopcionvariante,
-              imagen: o.imagenvariante || '',
-              // Inicializar precios de cada opción con los precios del producto principal
-              precios: unidadesActuales.map(u => ({
-                unidadid: u.unidadid,
-                precio: u.precio,
-              })),
-            })) || [],
-          })));
+          if (producto.unidades && producto.unidades.length > 0) {
+            setUnidades(producto.unidades.map(u => ({
+              // El backend puede traer unidadid directo o dentro de unidad.idunidad
+              unidadid: u.unidadid || u.unidad?.idunidad || 0,
+              precio: u.precio.toString(),
+            })));
+          }
+
+          if (producto.variantes && producto.variantes.length > 0) {
+            setShowVariantes(true);
+            // Cargar variantes con precios individuales por opción
+            const unidadesActuales = producto.unidades?.map(u => ({
+              unidadid: u.unidadid || u.unidad?.idunidad || 0,
+              precio: u.precio.toString(),
+            })) || [];
+            
+            setVariantes(producto.variantes.map(v => ({
+              nombre: v.nombrevariante,
+              opciones: v.opciones?.map(o => {
+                // Obtener precios de la opción si existen
+                const preciosOpcion = o.precios?.map(p => ({
+                  unidadid: unidadesActuales.find(u => {
+                    // Buscar el unidadid correspondiente al productounidadid
+                    const unidadProducto = producto.unidades?.find(pu => pu.idproductounidad === p.productounidadid);
+                    return unidadProducto?.unidadid === p.productounidadid || 
+                           unidadProducto?.unidad?.idunidad === p.productounidadid;
+                  })?.unidadid || p.productounidadid,
+                  precio: p.precio.toString(),
+                })) || [];
+
+                // Si no hay precios específicos, usar los precios del producto principal
+                const preciosFinales = unidadesActuales.map(u => {
+                  const precioOpcion = o.precios?.find(p => {
+                    const unidadProducto = producto.unidades?.find(pu => pu.idproductounidad === p.productounidadid);
+                    return (unidadProducto?.unidadid || unidadProducto?.unidad?.idunidad) === u.unidadid;
+                  });
+                  return {
+                    unidadid: u.unidadid,
+                    precio: precioOpcion ? precioOpcion.precio.toString() : u.precio,
+                  };
+                });
+
+                return {
+                  nombre: o.nombreopcionvariante,
+                  imagen: o.imagenvariante || '',
+                  precios: preciosFinales,
+                };
+              }) || [],
+            })));
+          }
         }
       }
-    }
-  }, [params.id, productos]);
+    };
+    
+    cargarProducto();
+  }, [params.id, isEditing, getProductoById]);
 
   const pickImage = async (useCamera: boolean = false) => {
     let result;
@@ -261,6 +298,84 @@ export default function ProductoFormScreen() {
     return uri.startsWith('file://') || uri.startsWith('content://') || uri.includes('ImagePicker');
   };
 
+  // Búsqueda de variantes con debounce
+  const buscarVariantes = async (vIndex: number, query: string) => {
+    setVarianteQuery({...varianteQuery, [vIndex]: query});
+    
+    if (query.length < 2) {
+      setShowVarianteSugerencias({...showVarianteSugerencias, [vIndex]: false});
+      return;
+    }
+
+    try {
+      const result = await productoService.searchVariantesCatalogo(query);
+      if (result.success && result.data) {
+        // Filtrar variantes que ya están en uso (excepto la actual)
+        const nombresUsados = variantes
+          .map((v, idx) => idx !== vIndex ? v.nombre.trim().toLowerCase() : null)
+          .filter(n => n !== null);
+        
+        const sugerenciasFiltradas = result.data.filter(
+          sug => !nombresUsados.includes(sug.nombrevariante.toLowerCase())
+        );
+        
+        setVarianteSugerencias(sugerenciasFiltradas);
+        setShowVarianteSugerencias({...showVarianteSugerencias, [vIndex]: sugerenciasFiltradas.length > 0});
+      }
+    } catch (error) {
+      console.error('Error buscando variantes:', error);
+    }
+  };
+
+  // Seleccionar variante de sugerencias
+  const seleccionarVariante = (vIndex: number, nombre: string) => {
+    const newVariantes = [...variantes];
+    newVariantes[vIndex].nombre = nombre;
+    setVariantes(newVariantes);
+    setVarianteQuery({...varianteQuery, [vIndex]: nombre});
+    setShowVarianteSugerencias({...showVarianteSugerencias, [vIndex]: false});
+  };
+
+  // Búsqueda de opciones con debounce
+  const buscarOpciones = async (vIndex: number, oIndex: number, query: string, varianteCatalogoId?: number) => {
+    const key = `${vIndex}-${oIndex}`;
+    setOpcionQuery({...opcionQuery, [key]: query});
+    
+    if (query.length < 2) {
+      setShowOpcionSugerencias({...showOpcionSugerencias, [key]: false});
+      return;
+    }
+
+    try {
+      const result = await productoService.searchOpcionesCatalogo(varianteCatalogoId || 1, query);
+      if (result.success && result.data) {
+        // Filtrar opciones que ya están en uso en esta variante (excepto la actual)
+        const nombresUsados = variantes[vIndex].opciones
+          .map((o, idx) => idx !== oIndex ? o.nombre.trim().toLowerCase() : null)
+          .filter(n => n !== null);
+        
+        const sugerenciasFiltradas = result.data.filter(
+          sug => !nombresUsados.includes(sug.nombreopcion.toLowerCase())
+        );
+        
+        setOpcionSugerencias({...opcionSugerencias, [key]: sugerenciasFiltradas});
+        setShowOpcionSugerencias({...showOpcionSugerencias, [key]: sugerenciasFiltradas.length > 0});
+      }
+    } catch (error) {
+      console.error('Error buscando opciones:', error);
+    }
+  };
+
+  // Seleccionar opción de sugerencias
+  const seleccionarOpcion = (vIndex: number, oIndex: number, nombre: string) => {
+    const newVariantes = [...variantes];
+    newVariantes[vIndex].opciones[oIndex].nombre = nombre;
+    setVariantes(newVariantes);
+    const key = `${vIndex}-${oIndex}`;
+    setOpcionQuery({...opcionQuery, [key]: nombre});
+    setShowOpcionSugerencias({...showOpcionSugerencias, [key]: false});
+  };
+
   const handleSave = async () => {
     if (!nombre.trim()) {
       showError('Error', 'El nombre del producto es requerido');
@@ -285,6 +400,28 @@ export default function ProductoFormScreen() {
       if (variantes.some(v => v.opciones.some(o => !o.nombre.trim()))) {
         showError('Error', 'Todas las opciones de variantes deben tener nombre');
         return;
+      }
+      
+      // Validar nombres duplicados de variantes
+      const nombresVariantes = variantes.map(v => v.nombre.trim().toLowerCase());
+      const variantesDuplicadas = nombresVariantes.filter((nombre, index) => 
+        nombresVariantes.indexOf(nombre) !== index
+      );
+      if (variantesDuplicadas.length > 0) {
+        showError('Error', `Tienes variantes con nombres duplicados: ${variantesDuplicadas.join(', ')}`);
+        return;
+      }
+      
+      // Validar nombres duplicados de opciones dentro de cada variante
+      for (let i = 0; i < variantes.length; i++) {
+        const nombresOpciones = variantes[i].opciones.map(o => o.nombre.trim().toLowerCase());
+        const opcionesDuplicadas = nombresOpciones.filter((nombre, index) => 
+          nombresOpciones.indexOf(nombre) !== index
+        );
+        if (opcionesDuplicadas.length > 0) {
+          showError('Error', `La variante "${variantes[i].nombre}" tiene opciones duplicadas: ${opcionesDuplicadas.join(', ')}`);
+          return;
+        }
       }
     }
 
@@ -354,7 +491,10 @@ export default function ProductoFormScreen() {
           opciones: v.opciones.map(o => ({
             nombre: o.nombre.trim(),
             imagen: o.imagen || '',
-            precios: o.precios,
+            precios: o.precios?.map(p => ({
+              unidadid: p.unidadid,
+              precio: parseFloat(p.precio) || 0,
+            })).filter(p => p.precio > 0) || [],
           })),
         })) as any : undefined,
       };
@@ -565,13 +705,35 @@ export default function ProductoFormScreen() {
               {variantes.map((variante, vIndex) => (
                 <View key={vIndex} className="rounded-xl p-4 mb-4 border border-gray-200 bg-white shadow-md">
                   <View className="flex-row items-center gap-2 mb-4">
-                    <TextInput
-                      className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-base font-poppins bg-white text-[#3d2b1f]"
-                      value={variante.nombre}
-                      onChangeText={(value) => updateVarianteNombre(vIndex, value)}
-                      placeholder="Nombre de la variante (Ej: Color, Tamaño)"
-                      placeholderTextColor="#9ca3af"
-                    />
+                    <View className="flex-1">
+                      <TextInput
+                        className="border border-gray-200 rounded-xl px-4 py-3 text-base font-poppins bg-white text-[#3d2b1f]"
+                        value={variante.nombre}
+                        onChangeText={(value) => {
+                          updateVarianteNombre(vIndex, value);
+                          buscarVariantes(vIndex, value);
+                        }}
+                        placeholder="Nombre de la variante (Ej: Color, Tamaño)"
+                        placeholderTextColor="#9ca3af"
+                      />
+                      
+                      {/* Sugerencias de variantes */}
+                      {showVarianteSugerencias[vIndex] && varianteSugerencias.length > 0 && (
+                        <View className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg mt-1 z-50 shadow-lg max-h-40">
+                          <ScrollView>
+                            {varianteSugerencias.map((sug, idx) => (
+                              <TouchableOpacity
+                                key={idx}
+                                onPress={() => seleccionarVariante(vIndex, sug.nombrevariante)}
+                                className="px-4 py-3 border-b border-gray-100"
+                              >
+                                <Text className="text-[#402612] font-poppins">{sug.nombrevariante}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </ScrollView>
+                        </View>
+                      )}
+                    </View>
                     <TouchableOpacity onPress={() => removeVariante(vIndex)}>
                       <Ionicons name="close-circle" size={24} color="#DC2626" />
                     </TouchableOpacity>
@@ -595,13 +757,35 @@ export default function ProductoFormScreen() {
                           )}
                         </TouchableOpacity>
 
-                        <TextInput
-                          className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-base font-poppins bg-white text-[#3d2b1f]"
-                          value={opcion.nombre}
-                          onChangeText={(value) => updateOpcionVariante(vIndex, oIndex, value)}
-                          placeholder="Nombre de la opción (Ej: Rojo)"
-                          placeholderTextColor="#9ca3af"
-                        />
+                        <View className="flex-1">
+                          <TextInput
+                            className="border border-gray-200 rounded-xl px-4 py-3 text-base font-poppins bg-white text-[#3d2b1f]"
+                            value={opcion.nombre}
+                            onChangeText={(value) => {
+                              updateOpcionVariante(vIndex, oIndex, value);
+                              buscarOpciones(vIndex, oIndex, value);
+                            }}
+                            placeholder="Nombre de la opción (Ej: Rojo)"
+                            placeholderTextColor="#9ca3af"
+                          />
+                          
+                          {/* Sugerencias de opciones */}
+                          {showOpcionSugerencias[`${vIndex}-${oIndex}`] && opcionSugerencias[`${vIndex}-${oIndex}`]?.length > 0 && (
+                            <View className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg mt-1 z-50 shadow-lg max-h-40">
+                              <ScrollView>
+                                {opcionSugerencias[`${vIndex}-${oIndex}`].map((sug, idx) => (
+                                  <TouchableOpacity
+                                    key={idx}
+                                    onPress={() => seleccionarOpcion(vIndex, oIndex, sug.nombreopcion)}
+                                    className="px-4 py-3 border-b border-gray-100"
+                                  >
+                                    <Text className="text-[#402612] font-poppins">{sug.nombreopcion}</Text>
+                                  </TouchableOpacity>
+                                ))}
+                              </ScrollView>
+                            </View>
+                          )}
+                        </View>
 
                         {variante.opciones.length > 1 && (
                           <TouchableOpacity onPress={() => removeOpcionVariante(vIndex, oIndex)}>
@@ -610,8 +794,8 @@ export default function ProductoFormScreen() {
                         )}
                       </View>
 
-                      {/* Precios por unidad de medida para esta opción - Solo en modo edición */}
-                      {isEditing && unidades.length > 0 && (
+                      {/* Precios por unidad de medida para esta opción */}
+                      {unidades.length > 0 && (
                         <View className="mt-2">
                           <Text className="text-xs font-poppins-bold mb-2 text-[#8B5A3C]">
                             Precios por unidad de medida:
@@ -622,7 +806,7 @@ export default function ProductoFormScreen() {
                               return (
                                 <View key={uIndex} className="bg-white rounded-lg p-2 border border-gray-200 min-w-[100px]">
                                   <Text className="text-xs font-poppins-semibold text-gray-600 text-center mb-1">
-                                    {unidadInfo?.abreviatura}
+                                    {unidadInfo?.abreviatura || unidadInfo?.nombre}
                                   </Text>
                                   <TextInput
                                     className="border border-gray-200 rounded-lg px-2 py-1 text-sm font-poppins bg-white text-[#3d2b1f] text-center"

@@ -39,20 +39,54 @@ export interface ProductoUnidad {
   estado?: number;
 }
 
+// Precio específico para una variante/opción por unidad de medida
+export interface PrecioVariante {
+  idpreciovariante?: number;
+  productounidadid: number;
+  productovarianteopcionid?: number;
+  precio: number;
+}
+
+// Opción de variante (ej: "Blanco", "Negro" para variante "Color")
 export interface OpcionVariante {
   idopcionvariante: number;
   varianteid?: number;
   nombreopcionvariante: string;
-  imagenvariante?: string;
+  imagenvariante?: string; // Imagen legacy (puede venir de opcionvariante o producto_variante_opcion)
+  opcioncatalogoid?: number;
   estado?: number;
+  // Campos de la nueva estructura
+  idproductovarianteopcion?: number; // ID de producto_variante_opcion
+  precios?: PrecioVariante[]; // Precios por unidad de medida
+  variante?: {
+    idvariante: number;
+    nombrevariante: string;
+  };
 }
 
+// Variante (ej: "Color", "Tamaño")
 export interface Variante {
   idvariante: number;
   productoid?: number;
   nombrevariante: string;
+  variantecatalogoid?: number;
   estado?: number;
   opciones?: OpcionVariante[];
+}
+
+// Catálogo de variantes (nombres únicos globales)
+export interface VarianteCatalogo {
+  idvariantecatalogo: number;
+  nombrevariante: string;
+  estado?: number;
+}
+
+// Catálogo de opciones (nombres únicos por variante)
+export interface OpcionCatalogo {
+  idopcioncatalogo: number;
+  nombreopcion: string;
+  variantecatalogoid: number;
+  estado?: number;
 }
 
 export interface Producto {
@@ -217,6 +251,11 @@ export interface ProductoForm {
     opciones: Array<{
       nombre: string;
       imagen?: string;
+      precios?: Array<{
+        unidadid?: number;
+        productounidadid?: number;
+        precio: number;
+      }>;
     }>;
   }>;
 }

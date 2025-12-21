@@ -42,7 +42,12 @@ const getAll = async (req, res) => {
               idproductounidad,
               unidad:unidadid(idunidad, nombre, abreviatura)
             ),
-            opcionvariante:opcionvarianteid(idopcionvariante, nombreopcionvariante)
+            opcionvariante:opcionvarianteid(
+              idopcionvariante, 
+              nombreopcionvariante,
+              imagenvariante,
+              variante:varianteid(idvariante, nombrevariante)
+            )
           )
         ),
         detalles:detalle_cobro(
@@ -119,7 +124,12 @@ const getById = async (req, res) => {
               idproductounidad,
               unidad:unidadid(idunidad, nombre, abreviatura)
             ),
-            opcionvariante:opcionvarianteid(idopcionvariante, nombreopcionvariante)
+            opcionvariante:opcionvarianteid(
+              idopcionvariante, 
+              nombreopcionvariante,
+              imagenvariante,
+              variante:varianteid(idvariante, nombrevariante)
+            )
           )
         ),
         detalles:detalle_cobro(
