@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import type { Producto, Categoria, UnidadMedida } from '@/types/types';
 import { productoService, ProductoFilters, ProductoCreateData } from '@/services/productoService';
+import { realtimeService } from '@/services/realtimeService';
 
 interface InventarioContextData {
   productos: Producto[];
@@ -210,11 +211,39 @@ export const InventarioProvider = ({ children }: { children: ReactNode }) => {
 
   const clearError = () => setError(null);
 
-  // Cargar datos iniciales
+  // Referencia para controlar suscripciones
+  const realtimeChannelIds = useRef<string[]>([]);
+
+  // Cargar datos iniciales y suscribirse a cambios en tiempo real
   useEffect(() => {
     loadProductos();
     loadCategorias();
     loadUnidades();
+
+    // Suscribirse a cambios en tiempo real en la tabla producto
+    const channelIds = realtimeService.subscribeToMultiple(
+      ['producto', 'variante', 'opcionvariante'],
+      (table, payload) => {
+        console.log(`[InventarioContext] Cambio detectado en ${table}:`, payload.eventType);
+        
+        // Recargar productos cuando hay cambios
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE' || payload.eventType === 'DELETE') {
+          // Usar timeout para evitar múltiples recargas simultáneas
+          setTimeout(() => {
+            loadProductos(currentFilters);
+          }, 500);
+        }
+      }
+    );
+
+    realtimeChannelIds.current = channelIds;
+
+    // Cleanup: desuscribirse al desmontar
+    return () => {
+      realtimeChannelIds.current.forEach(id => {
+        realtimeService.unsubscribe(id);
+      });
+    };
   }, []);
 
   return (

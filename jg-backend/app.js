@@ -13,6 +13,7 @@ const cobroRoutes = require('./routes/cobroRoutes');
 const pedidoRoutes = require('./routes/pedidoRoutes');
 const catalogoRoutes = require('./routes/catalogoRoutes');
 const configRoutes = require('./routes/configRoutes');
+const { healthCheck } = require('./controllers/healthController');
 
 const app = express();
 
@@ -46,9 +47,9 @@ app.get('/', (req, res) => {
   });
 });
 
-app.get('/health', (req, res) => {
-  res.json({ status: 'healthy' });
-});
+// Health check mejorado
+app.get('/health', healthCheck);
+app.get('/api/health', healthCheck);
 
 // Rutas de la API
 app.use('/api/auth', authRoutes);

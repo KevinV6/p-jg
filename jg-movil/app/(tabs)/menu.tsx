@@ -151,6 +151,20 @@ export default function MenuScreen() {
           />
         </View>
 
+        {/* Sección de Gestión */}
+        <View className="px-6 mb-6">
+          <Text className="text-xs font-poppins-black text-[#8B5A3C] px-2 mb-3 uppercase">
+            Gestión
+          </Text>
+          <MenuItem
+            icon="people-outline"
+            title="Clientes"
+            subtitle="Gestionar clientes registrados"
+            onPress={() => router.push('/clientes')}
+            color="#3B82F6"
+          />
+        </View>
+
         {/* Sección de Cuenta */}
         <View className="px-6 mb-6">
           <Text className="text-xs font-poppins-black text-[#8B5A3C] px-2 mb-3 uppercase">

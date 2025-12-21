@@ -1,4 +1,5 @@
 import { SafeHeader, ScreenContainer } from '@/components/shared/ScreenContainer';
+import { useCustomAlert } from '@/components/shared/CustomAlert';
 import { useInventario } from '@/contexts/InventarioContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
@@ -6,7 +7,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -46,6 +46,7 @@ export default function ProductoFormScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { productos, categorias, unidades: unidadesMedida, addProducto, updateProducto, isLoading } = useInventario();
+  const { showError, showWarning, showSuccess, AlertComponent } = useCustomAlert();
   const isEditing = !!params.id;
 
   const [nombre, setNombre] = useState('');
@@ -110,7 +111,7 @@ export default function ProductoFormScreen() {
     if (useCamera) {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permiso denegado', 'Se necesita permiso para acceder a la cámara');
+        showWarning('Permiso denegado', 'Se necesita permiso para acceder a la cámara');
         return;
       }
       
@@ -122,7 +123,7 @@ export default function ProductoFormScreen() {
     } else {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permiso denegado', 'Se necesita permiso para acceder a la galería');
+        showWarning('Permiso denegado', 'Se necesita permiso para acceder a la galería');
         return;
       }
 
@@ -142,7 +143,7 @@ export default function ProductoFormScreen() {
   const pickVarianteImage = async (varianteIndex: number, opcionIndex: number) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso denegado', 'Se necesita permiso para acceder a la galería');
+      showWarning('Permiso denegado', 'Se necesita permiso para acceder a la galería');
       return;
     }
 
@@ -262,27 +263,27 @@ export default function ProductoFormScreen() {
 
   const handleSave = async () => {
     if (!nombre.trim()) {
-      Alert.alert('Error', 'El nombre del producto es requerido');
+      showError('Error', 'El nombre del producto es requerido');
       return;
     }
 
     if (!imagen) {
-      Alert.alert('Error', 'La imagen del producto es requerida');
+      showError('Error', 'La imagen del producto es requerida');
       return;
     }
 
     if (unidades.some(u => !u.precio || parseFloat(u.precio) <= 0)) {
-      Alert.alert('Error', 'Todos los precios deben ser mayores a 0');
+      showError('Error', 'Todos los precios deben ser mayores a 0');
       return;
     }
 
     if (showVariantes) {
       if (variantes.some(v => !v.nombre.trim())) {
-        Alert.alert('Error', 'Todas las variantes deben tener nombre');
+        showError('Error', 'Todas las variantes deben tener nombre');
         return;
       }
       if (variantes.some(v => v.opciones.some(o => !o.nombre.trim()))) {
-        Alert.alert('Error', 'Todas las opciones de variantes deben tener nombre');
+        showError('Error', 'Todas las opciones de variantes deben tener nombre');
         return;
       }
     }
@@ -301,7 +302,7 @@ export default function ProductoFormScreen() {
         });
 
         if (!uploadResult.success || !uploadResult.data?.url) {
-          Alert.alert('Error', 'No se pudo subir la imagen');
+          showError('Error', uploadResult.error || 'No se pudo subir la imagen. Verifica tu conexión e intenta nuevamente.');
           setIsSaving(false);
           return;
         }
@@ -309,16 +310,53 @@ export default function ProductoFormScreen() {
         imagenUrl = uploadResult.data.url;
       }
 
+      // Subir imágenes de variantes que sean locales
+      let variantesConImagenes = variantes;
+      if (showVariantes && variantes.length > 0) {
+        variantesConImagenes = await Promise.all(
+          variantes.map(async (variante) => {
+            const opcionesConImagenes = await Promise.all(
+              variante.opciones.map(async (opcion) => {
+                if (opcion.imagen && isLocalImage(opcion.imagen)) {
+                  try {
+                    const uploadResult = await productoService.uploadVarianteImage({
+                      uri: opcion.imagen,
+                      mimeType: 'image/jpeg',
+                      fileName: `variante_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.jpg`,
+                    });
+
+                    if (uploadResult.success && uploadResult.data?.url) {
+                      return { ...opcion, imagen: uploadResult.data.url };
+                    }
+                  } catch (error) {
+                    console.error('Error subiendo imagen de variante:', error);
+                  }
+                }
+                return opcion;
+              })
+            );
+            return { ...variante, opciones: opcionesConImagenes };
+          })
+        );
+      }
+
       const productoData = {
-        nombreproducto: nombre,
-        descripcion,
+        nombreproducto: nombre.trim(),
+        descripcion: descripcion.trim(),
         categoriaid: categoriaId,
         imagen: imagenUrl,
         unidades: unidades.map(u => ({
           unidadid: u.unidadid,
           precio: parseFloat(u.precio),
         })) as any,
-        variantes: showVariantes ? variantes as any : undefined,
+        variantes: showVariantes ? variantesConImagenes.map(v => ({
+          nombre: v.nombre.trim(),
+          opciones: v.opciones.map(o => ({
+            nombre: o.nombre.trim(),
+            imagen: o.imagen || '',
+            precios: o.precios,
+          })),
+        })) as any : undefined,
       };
 
       let success = false;
@@ -329,38 +367,29 @@ export default function ProductoFormScreen() {
       }
 
       if (success) {
-        router.back();
+        showSuccess('Éxito', `Producto ${isEditing ? 'actualizado' : 'creado'} correctamente`, () => {
+          router.back();
+        });
       } else {
-        Alert.alert('Error', 'No se pudo guardar el producto');
+        showError('Error', 'No se pudo guardar el producto. Intenta nuevamente.');
       }
     } catch (error) {
       console.error('Error guardando producto:', error);
-      Alert.alert('Error', 'Ocurrió un error al guardar el producto');
+      showError('Error', 'Ocurrió un error al guardar el producto. Verifica tu conexión e intenta nuevamente.');
     } finally {
       setIsSaving(false);
     }
   };
 
+  const [showImageModal, setShowImageModal] = useState(false);
+
   const showImageOptions = () => {
-    Alert.alert(
-      'Seleccionar imagen',
-      'Elige una opción',
-      [
-        {
-          text: 'Tomar foto',
-          onPress: () => pickImage(true),
-        },
-        {
-          text: 'Elegir de galería',
-          onPress: () => pickImage(false),
-        },
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
-      ],
-      { cancelable: true }
-    );
+    setShowImageModal(true);
+  };
+
+  const handleImageOption = (useCamera: boolean) => {
+    setShowImageModal(false);
+    pickImage(useCamera);
   };
 
   return (
@@ -760,6 +789,62 @@ export default function ProductoFormScreen() {
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
+
+    {/* Modal para seleccionar imagen */}
+    <Modal visible={showImageModal} transparent animationType="fade">
+      <TouchableOpacity 
+        className="flex-1 bg-black/50 justify-center items-center"
+        activeOpacity={1}
+        onPress={() => setShowImageModal(false)}
+      >
+        <View className="bg-white rounded-2xl mx-8 overflow-hidden" style={{ width: 280 }}>
+          <View className="px-6 py-4 border-b border-gray-100">
+            <Text className="text-lg font-poppins-semibold text-[#402612]">
+              Seleccionar imagen
+            </Text>
+            <Text className="text-sm font-poppins text-gray-600 mt-1">
+              Elige una opción
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            className="flex-row items-center px-6 py-4 active:bg-gray-50"
+            onPress={() => handleImageOption(true)}
+          >
+            <Ionicons name="camera" size={24} color="#402612" />
+            <Text className="text-base font-poppins text-[#402612] ml-3">
+              Tomar foto
+            </Text>
+          </TouchableOpacity>
+
+          <View className="h-px bg-gray-100 mx-6" />
+
+          <TouchableOpacity
+            className="flex-row items-center px-6 py-4 active:bg-gray-50"
+            onPress={() => handleImageOption(false)}
+          >
+            <Ionicons name="images" size={24} color="#402612" />
+            <Text className="text-base font-poppins text-[#402612] ml-3">
+              Elegir de galería
+            </Text>
+          </TouchableOpacity>
+
+          <View className="h-px bg-gray-100" />
+
+          <TouchableOpacity
+            className="px-6 py-4 active:bg-gray-50"
+            onPress={() => setShowImageModal(false)}
+          >
+            <Text className="text-base font-poppins text-center text-gray-600">
+              Cancelar
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+
+    {/* Custom Alert Component */}
+    <AlertComponent />
     </ScreenContainer>
   );
 }

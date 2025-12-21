@@ -1,7 +1,9 @@
-import React, { createContext, ReactNode, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, ReactNode, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { DeviceEventEmitter } from 'react-native';
 import type { Venta, Cliente, CarritoItem } from '@/types/types';
 import { ventaService, VentaFilters, VentaCreateData, VentaResumen } from '@/services/ventaService';
 import { clienteService } from '@/services/clienteService';
+import { realtimeService } from '@/services/realtimeService';
 
 interface VentasContextData {
   ventas: Venta[];
@@ -138,6 +140,19 @@ export const VentasProvider = ({ children }: { children: ReactNode }) => {
         console.log('[VentasContext] crearVenta - ÉXITO, venta creada:', response.data.idventa);
         setVentas(prev => [response.data!, ...prev]);
         limpiarCarrito();
+        
+        // Recargar resumen después de crear venta
+        loadResumen();
+        
+        // Si es venta a crédito, notificar a otros contextos que se actualicen
+        if (data.tipo_pago === 'credito') {
+          console.log('[VentasContext] Venta a crédito - triggering cobros refresh');
+          // Disparar evento para actualizar cobros
+          setTimeout(() => {
+            DeviceEventEmitter.emit('ventaCreditoCreada');
+          }, 500);
+        }
+        
         return response.data;
       }
 
@@ -251,17 +266,49 @@ export const VentasProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const getTotalVentas = (): number => {
-    return resumen?.total_ventas || ventas
+    // Usar el total del mes del resumen, o calcular desde ventas cargadas
+    return resumen?.mes?.total || ventas
       .filter(v => v.estado === 1)
       .reduce((sum, v) => sum + v.total, 0);
   };
 
   const clearError = () => setError(null);
 
+  // Referencia para controlar suscripciones
+  const realtimeChannelIds = useRef<string[]>([]);
+
   useEffect(() => {
     loadVentas();
     loadClientes();
     loadResumen();
+
+    // Suscribirse a cambios en tiempo real
+    const channelIds = realtimeService.subscribeToMultiple(
+      ['venta', 'cliente'],
+      (table, payload) => {
+        console.log(`[VentasContext] Cambio detectado en ${table}:`, payload.eventType);
+        
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE' || payload.eventType === 'DELETE') {
+          setTimeout(() => {
+            if (table === 'venta') {
+              loadVentas(currentFilters);
+              loadResumen();
+            } else if (table === 'cliente') {
+              loadClientes();
+            }
+          }, 500);
+        }
+      }
+    );
+
+    realtimeChannelIds.current = channelIds;
+
+    // Cleanup
+    return () => {
+      realtimeChannelIds.current.forEach(id => {
+        realtimeService.unsubscribe(id);
+      });
+    };
   }, []);
 
   return (

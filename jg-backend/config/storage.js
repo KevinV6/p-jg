@@ -3,7 +3,54 @@ const path = require('path');
 const multer = require('multer');
 const { getAdminConnection, supabaseUrl } = require('./database');
 
-const BUCKET_NAME = 'imagenes';
+const BUCKET_NAME = 'jb-imagenes';
+
+// Variable para controlar si ya se verificó el bucket
+let bucketVerified = false;
+
+// Verifica y crea el bucket si no existe
+const ensureBucketExists = async () => {
+  if (bucketVerified) return true;
+  
+  try {
+    const supabase = getAdminConnection();
+    
+    // Intentar listar el bucket para verificar si existe
+    const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+    
+    if (listError) {
+      console.error('[Storage] Error al listar buckets:', listError.message);
+      return false;
+    }
+    
+    const bucketExists = buckets?.some(bucket => bucket.name === BUCKET_NAME);
+    
+    if (!bucketExists) {
+      console.log(`[Storage] Bucket '${BUCKET_NAME}' no existe, creándolo...`);
+      
+      // Crear el bucket público
+      const { data, error: createError } = await supabase.storage.createBucket(BUCKET_NAME, {
+        public: true,
+        fileSizeLimit: 5242880 // 5MB en bytes
+      });
+      
+      if (createError) {
+        console.error('[Storage] Error al crear bucket:', createError.message);
+        return false;
+      }
+      
+      console.log(`[Storage] Bucket '${BUCKET_NAME}' creado exitosamente`);
+    } else {
+      console.log(`[Storage] Bucket '${BUCKET_NAME}' ya existe`);
+    }
+    
+    bucketVerified = true;
+    return true;
+  } catch (error) {
+    console.error('[Storage] Error en ensureBucketExists:', error.message);
+    return false;
+  }
+};
 
 // Configuración de Multer para usar memoria
 const storage = multer.memoryStorage();
@@ -70,9 +117,17 @@ const uploadImage = async (file, folder) => {
   
   validateFile(file);
   
+  // Asegurar que el bucket existe antes de subir
+  const bucketReady = await ensureBucketExists();
+  if (!bucketReady) {
+    throw new Error('No se pudo verificar o crear el bucket de almacenamiento. Verifica la configuración de Supabase Storage.');
+  }
+  
   const supabase = getAdminConnection();
   const fileName = generateUniqueFileName(file.originalname);
   const filePath = `${folder}/${fileName}`;
+  
+  console.log(`[Storage] Subiendo archivo: ${filePath}`);
   
   const { data, error } = await supabase.storage
     .from(BUCKET_NAME)
@@ -82,6 +137,7 @@ const uploadImage = async (file, folder) => {
     });
   
   if (error) {
+    console.error('[Storage] Error al subir:', error);
     throw new Error(`Error al subir imagen: ${error.message}`);
   }
   
@@ -89,6 +145,8 @@ const uploadImage = async (file, folder) => {
   const { data: { publicUrl } } = supabase.storage
     .from(BUCKET_NAME)
     .getPublicUrl(filePath);
+  
+  console.log(`[Storage] Archivo subido exitosamente: ${publicUrl}`);
   
   return {
     path: filePath,

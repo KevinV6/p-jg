@@ -86,6 +86,22 @@ class ProductoService {
     });
   }
 
+  // Subir imagen de variante
+  async uploadVarianteImage(file: { uri: string; mimeType?: string; fileName?: string }) {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: file.uri,
+      type: file.mimeType || 'image/jpeg',
+      name: file.fileName || `variante_${Date.now()}.jpg`,
+    } as any);
+
+    return api.request<{ url: string; path: string }>('/productos/upload-variante-imagen', {
+      method: 'POST',
+      body: formData,
+      isFormData: true,
+    });
+  }
+
   // Catálogo
   async getCategorias() {
     return api.get<Categoria[]>('/catalogo/categorias');

@@ -1,4 +1,5 @@
 import { SafeHeader, ScreenContainer } from '@/components/shared/ScreenContainer';
+import { useCustomAlert } from '@/components/shared/CustomAlert';
 import { usePedidos } from '@/contexts/PedidosContext';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
@@ -10,7 +11,6 @@ import {
     Text,
     TouchableOpacity,
     View,
-    Alert,
     ActivityIndicator,
 } from 'react-native';
 import type { Pedido } from '@/types';
@@ -19,6 +19,7 @@ export default function PedidoDetalleScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const { getPedidoById, confirmarPedido, cancelarPedido, convertirAVenta, isLoading } = usePedidos();
+  const { showError, showSuccess, AlertComponent } = useCustomAlert();
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [pedido, setPedido] = useState<Pedido | null>(null);
@@ -64,11 +65,9 @@ export default function PedidoDetalleScreen() {
     
     if (result) {
       setShowConfirmModal(false);
-      Alert.alert('Éxito', 'Pedido convertido a venta', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
+      showSuccess('Éxito', 'Pedido convertido a venta', () => router.back());
     } else {
-      Alert.alert('Error', 'No se pudo convertir el pedido a venta');
+      showError('Error', 'No se pudo convertir el pedido a venta');
       setShowConfirmModal(false);
     }
   };
@@ -83,7 +82,7 @@ export default function PedidoDetalleScreen() {
     if (result) {
       router.back();
     } else {
-      Alert.alert('Error', 'No se pudo cancelar el pedido');
+      showError('Error', 'No se pudo cancelar el pedido');
     }
   };
 
@@ -335,6 +334,9 @@ export default function PedidoDetalleScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Custom Alert Component */}
+      <AlertComponent />
     </ScreenContainer>
   );
 }

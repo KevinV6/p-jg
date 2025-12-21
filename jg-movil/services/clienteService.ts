@@ -59,6 +59,10 @@ class ClienteService {
   async remove(id: number) {
     return api.delete(`/clientes/${id}`);
   }
+
+  async delete(id: number) {
+    return api.delete(`/clientes/${id}`);
+  }
 }
 
 export const clienteService = new ClienteService();

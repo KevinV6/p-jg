@@ -1,6 +1,8 @@
-import React, { createContext, ReactNode, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, ReactNode, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { DeviceEventEmitter } from 'react-native';
 import type { Cobro } from '@/types/types';
 import { cobroService, CobroFilters, CobroCreateData, CobroResumen } from '@/services/cobroService';
+import { realtimeService } from '@/services/realtimeService';
 
 interface CobrosContextData {
   cobros: Cobro[];
@@ -89,6 +91,21 @@ export const CobrosProvider = ({ children }: { children: ReactNode }) => {
   const refresh = useCallback(async () => {
     await loadCobros(currentFilters);
   }, [loadCobros, currentFilters]);
+
+  // Escuchar evento de venta a crédito creada para actualizar cobros automáticamente
+  useEffect(() => {
+    const handleVentaCreditoCreada = () => {
+      console.log('[CobrosContext] Evento ventaCreditoCreada recibido - recargando cobros...');
+      refresh();
+      loadResumen();
+    };
+
+    const subscription = DeviceEventEmitter.addListener('ventaCreditoCreada', handleVentaCreditoCreada);
+    
+    return () => {
+      subscription.remove();
+    };
+  }, [refresh]);
 
   const loadResumen = async () => {
     try {
@@ -222,9 +239,40 @@ export const CobrosProvider = ({ children }: { children: ReactNode }) => {
 
   const clearError = () => setError(null);
 
+  // Referencia para controlar suscripciones
+  const realtimeChannelIds = useRef<string[]>([]);
+
   useEffect(() => {
     loadCobros();
     loadResumen();
+
+    // Suscribirse a cambios en tiempo real en la tabla cobro
+    const channelId = realtimeService.subscribe({
+      table: 'cobro',
+      event: '*',
+      callback: (payload) => {
+        console.log('[CobrosContext] Cambio detectado:', payload.eventType);
+        
+        // Recargar cobros cuando hay cambios
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE' || payload.eventType === 'DELETE') {
+          setTimeout(() => {
+            loadCobros(currentFilters);
+            loadResumen();
+          }, 500);
+        }
+      }
+    });
+
+    if (channelId) {
+      realtimeChannelIds.current.push(channelId);
+    }
+
+    // Cleanup
+    return () => {
+      realtimeChannelIds.current.forEach(id => {
+        realtimeService.unsubscribe(id);
+      });
+    };
   }, []);
 
   return (

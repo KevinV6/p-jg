@@ -196,30 +196,74 @@ const create = async (req, res) => {
     // Crear variantes si existen
     if (variantes.length > 0) {
       for (const variante of variantes) {
-        // Crear variante
-        const { data: newVariante, error: varianteError } = await supabase
+        // Normalizar nombre: trim espacios al inicio y final
+        const nombreVarianteNormalizado = variante.nombre.trim();
+        
+        // Buscar si ya existe una variante con el mismo nombre para este producto
+        let varianteId = null;
+        const { data: existingVariante } = await supabase
           .from('variante')
-          .insert({
-            nombrevariante: variante.nombre,
-            productoid: producto.idproducto,
-            estado: 1
-          })
-          .select()
+          .select('idvariante')
+          .eq('productoid', producto.idproducto)
+          .ilike('nombrevariante', nombreVarianteNormalizado)
+          .eq('estado', 1)
           .single();
 
-        if (varianteError) {
-          console.error('Error creando variante:', varianteError);
-          continue;
+        if (existingVariante) {
+          varianteId = existingVariante.idvariante;
+          console.log(`[Producto] Reutilizando variante existente: ${nombreVarianteNormalizado} (ID: ${varianteId})`);
+        } else {
+          // Crear nueva variante
+          const { data: newVariante, error: varianteError } = await supabase
+            .from('variante')
+            .insert({
+              nombrevariante: nombreVarianteNormalizado,
+              productoid: producto.idproducto,
+              estado: 1
+            })
+            .select()
+            .single();
+
+          if (varianteError) {
+            console.error('Error creando variante:', varianteError);
+            continue;
+          }
+          varianteId = newVariante.idvariante;
+          console.log(`[Producto] Nueva variante creada: ${nombreVarianteNormalizado} (ID: ${varianteId})`);
         }
 
         // Crear opciones de variante
         if (variante.opciones && variante.opciones.length > 0) {
           for (const opcion of variante.opciones) {
+            // Normalizar nombre de opción
+            const nombreOpcionNormalizado = opcion.nombre.trim();
+            
+            // Verificar si ya existe la opción para esta variante
+            const { data: existingOpcion } = await supabase
+              .from('opcionvariante')
+              .select('idopcionvariante')
+              .eq('varianteid', varianteId)
+              .ilike('nombreopcionvariante', nombreOpcionNormalizado)
+              .eq('estado', 1)
+              .single();
+
+            if (existingOpcion) {
+              // Actualizar imagen si es necesario
+              if (opcion.imagen) {
+                await supabase
+                  .from('opcionvariante')
+                  .update({ imagenvariante: opcion.imagen })
+                  .eq('idopcionvariante', existingOpcion.idopcionvariante);
+              }
+              console.log(`[Producto] Opción existente actualizada: ${nombreOpcionNormalizado}`);
+              continue;
+            }
+
             const { data: newOpcion, error: opcionError } = await supabase
               .from('opcionvariante')
               .insert({
-                nombreopcionvariante: opcion.nombre,
-                varianteid: newVariante.idvariante,
+                nombreopcionvariante: nombreOpcionNormalizado,
+                varianteid: varianteId,
                 imagenvariante: opcion.imagen || '',
                 estado: 1
               })
@@ -385,6 +429,22 @@ const uploadProductImage = async (req, res) => {
   }
 };
 
+// Subir imagen de variante
+const uploadVarianteImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return errorResponse(res, 'No se proporcionó imagen', 400);
+    }
+
+    const result = await uploadImage(req.file, 'variantes');
+    return successResponse(res, result, 'Imagen de variante subida exitosamente');
+
+  } catch (error) {
+    console.error('Upload variante image error:', error);
+    return errorResponse(res, error.message || 'Error al subir imagen de variante', 500);
+  }
+};
+
 // Actualizar imagen de producto existente
 const updateProductImage = async (req, res) => {
   try {
@@ -427,5 +487,6 @@ module.exports = {
   update,
   remove,
   uploadProductImage,
+  uploadVarianteImage,
   updateProductImage
 };

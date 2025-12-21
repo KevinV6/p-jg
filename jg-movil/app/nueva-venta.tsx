@@ -1,6 +1,8 @@
 import { ComprobanteModal, ConfirmModal } from '@/components/modales';
 import { SafeHeader, ScreenContainer } from '@/components/shared/ScreenContainer';
+import { useCustomAlert } from '@/components/shared/CustomAlert';
 import ProductSelector, { ItemCarrito } from '@/components/venta/ProductSelector';
+import { useCobros } from '@/contexts/CobrosContext';
 import { useVentas } from '@/contexts/VentasContext';
 import { clienteService } from '@/services/clienteService';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,12 +18,13 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Alert,
 } from 'react-native';
 
 export default function NuevaVentaScreen() {
   const router = useRouter();
   const { clientes, loadClientes, crearVenta, isLoading } = useVentas();
+  const { cobros } = useCobros();
+  const { showError, showSuccess, AlertComponent } = useCustomAlert();
 
   const [clienteId, setClienteId] = useState<number | null>(null);
   const [clienteNombre, setClienteNombre] = useState('');
@@ -35,6 +38,8 @@ export default function NuevaVentaScreen() {
   const [showComprobanteModal, setShowComprobanteModal] = useState(false);
   const [ventaRealizada, setVentaRealizada] = useState<any>(null);
   const [procesando, setProcesando] = useState(false);
+  const [showCreditoBlockedModal, setShowCreditoBlockedModal] = useState(false);
+  const [deudaInfo, setDeudaInfo] = useState<{ total: number; cantidad: number } | null>(null);
 
   useEffect(() => {
     loadClientes();
@@ -111,11 +116,35 @@ export default function NuevaVentaScreen() {
     return carrito.reduce((sum, item) => sum + item.subtotal, 0);
   };
 
+  // Función para verificar si el cliente tiene cobros pendientes
+  const verificarCobrosPendientes = (idCliente: number): { tiene: boolean; total: number; cantidad: number } => {
+    const cobrosPendientesCliente = cobros.filter(
+      c => c.clienteid === idCliente && c.estado === 1
+    );
+    const totalDeuda = cobrosPendientesCliente.reduce((sum, c) => sum + c.total, 0);
+    return {
+      tiene: cobrosPendientesCliente.length > 0,
+      total: totalDeuda,
+      cantidad: cobrosPendientesCliente.length
+    };
+  };
+
   const handleFinalizarVenta = async () => {
     if (carrito.length === 0) {
-      Alert.alert('Error', 'Agrega productos al carrito');
+      showError('Error', 'Agrega productos al carrito');
       return;
     }
+
+    // Si es venta a crédito y hay un cliente seleccionado, verificar si tiene cobros pendientes
+    if (tipoVenta === 'credito' && clienteId) {
+      const { tiene, total, cantidad } = verificarCobrosPendientes(clienteId);
+      if (tiene) {
+        setDeudaInfo({ total, cantidad });
+        setShowCreditoBlockedModal(true);
+        return;
+      }
+    }
+
     setShowConfirmModal(true);
   };
 
@@ -141,7 +170,7 @@ export default function NuevaVentaScreen() {
           console.log('[NuevaVenta] Cliente creado con ID:', idClienteFinal);
         } else {
           console.error('[NuevaVenta] Error creando cliente:', nuevoCliente.error);
-          Alert.alert('Error', 'No se pudo crear el cliente');
+          showError('Error', 'No se pudo crear el cliente');
           setProcesando(false);
           return;
         }
@@ -157,7 +186,7 @@ export default function NuevaVentaScreen() {
           setClienteNombre(genericoRes.data.nombrecliente);
           console.log('[NuevaVenta] Usando cliente genérico ID:', idClienteFinal);
         } else {
-          Alert.alert('Error', 'No se encontró cliente genérico');
+          showError('Error', 'No se encontró cliente genérico');
           setProcesando(false);
           return;
         }
@@ -211,12 +240,12 @@ export default function NuevaVentaScreen() {
         setShowComprobanteModal(true);
       } else {
         console.error('[NuevaVenta] === VENTA FALLIDA ===');
-        Alert.alert('Error', 'No se pudo crear la venta');
+        showError('Error', 'No se pudo crear la venta. Verifica tu conexión e intenta nuevamente.');
         setShowConfirmModal(false);
       }
     } catch (error) {
       console.error('Error en venta:', error);
-      Alert.alert('Error', 'Ocurrió un error al procesar la venta');
+      showError('Error', 'Ocurrió un error al procesar la venta. Verifica tu conexión e intenta nuevamente.');
       setShowConfirmModal(false);
     } finally {
       setProcesando(false);
@@ -468,6 +497,79 @@ export default function NuevaVentaScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Modal de Crédito Bloqueado */}
+      <Modal
+        visible={showCreditoBlockedModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowCreditoBlockedModal(false)}
+      >
+        <View className="flex-1 bg-black/50 justify-center items-center px-6">
+          <View className="bg-[#F6EBD7] rounded-2xl w-full max-w-sm">
+            {/* Header con icono de alerta */}
+            <View className="bg-[#FF5555] rounded-t-2xl px-4 py-5 items-center">
+              <View className="bg-white/20 rounded-full p-3 mb-2">
+                <Ionicons name="warning" size={36} color="#FFFFFF" />
+              </View>
+              <Text className="text-lg font-poppins-bold text-white text-center">
+                Crédito No Disponible
+              </Text>
+            </View>
+
+            <View className="p-5">
+              <Text className="text-base font-poppins-regular text-[#402612] text-center mb-4">
+                Este cliente tiene{' '}
+                <Text className="font-poppins-bold">{deudaInfo?.cantidad} cobro(s) pendiente(s)</Text>{' '}
+                por un total de:
+              </Text>
+              
+              <View className="bg-[#FF5555]/10 rounded-xl p-4 mb-4 items-center">
+                <Text className="text-3xl font-poppins-black text-[#FF5555]">
+                  Bs. {deudaInfo?.total.toFixed(2)}
+                </Text>
+              </View>
+
+              <Text className="text-sm font-poppins-regular text-[#8B5A3C] text-center mb-4">
+                No puede realizar ventas a crédito hasta que pague su deuda pendiente.
+              </Text>
+
+              <View className="bg-[#3B82F6]/10 rounded-xl p-3 flex-row items-center">
+                <Ionicons name="information-circle" size={20} color="#3B82F6" />
+                <Text className="text-sm font-poppins-regular text-[#3B82F6] ml-2 flex-1">
+                  Puede realizar la venta al contado.
+                </Text>
+              </View>
+            </View>
+
+            <View className="px-4 pb-4 flex-row gap-3">
+              <TouchableOpacity
+                onPress={() => {
+                  setShowCreditoBlockedModal(false);
+                  setTipoVenta('contado');
+                }}
+                className="flex-1 bg-[#402612] rounded-xl py-3"
+              >
+                <Text className="text-center text-white font-poppins-bold">
+                  Cambiar a Contado
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                onPress={() => setShowCreditoBlockedModal(false)}
+                className="flex-1 bg-[#8B5A3C] rounded-xl py-3"
+              >
+                <Text className="text-center text-white font-poppins-semibold">
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Custom Alert Component */}
+      <AlertComponent />
     </ScreenContainer>
   );
 }

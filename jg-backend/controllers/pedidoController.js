@@ -36,17 +36,19 @@ const getAll = async (req, res) => {
       query = query.eq('clienteid', clienteid);
     }
 
-    if (fecha_desde) {
-      query = query.gte('fechacreacion', fecha_desde);
-    }
+    // TODO: Los pedidos no tienen fechacreacion, usar fecha cuando esté disponible
+    // if (fecha_desde) {
+    //   query = query.gte('fechacreacion', fecha_desde);
+    // }
 
-    if (fecha_hasta) {
-      query = query.lte('fechacreacion', fecha_hasta);
-    }
+    // if (fecha_hasta) {
+    //   query = query.lte('fechacreacion', fecha_hasta);
+    // }
 
     // Paginación
     const { from, to, pageNum, limitNum } = paginate(page, limit);
-    query = query.range(from, to).order('fechacreacion', { ascending: false });
+    // Ordenar por idpedido en lugar de fechacreacion
+    query = query.range(from, to).order('idpedido', { ascending: false });
 
     const { data, error, count } = await query;
 
