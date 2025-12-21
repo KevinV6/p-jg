@@ -26,10 +26,10 @@ interface ComprobanteModalProps {
   subtitle?: string;
   data: {
     folio?: string;
-    fecha?: Date;
+    fecha?: Date | string;
     cliente?: string;
     telefono?: string;
-    tipoventa?: number;
+    tipo_pago?: 'contado' | 'credito';
     detalle?: DetalleItem[];
     auxDetalles?: DetalleItem[];
     total: number;
@@ -52,8 +52,8 @@ export const ComprobanteModal: React.FC<ComprobanteModalProps> = ({
   showSuccessHeader = true,
   tipo = 'venta'
 }) => {
-  const formatFecha = (date: Date) => {
-    return format(date, 'dd/MM/yyyy HH:mm');
+  const formatFecha = (date: Date | string) => {
+    return format(new Date(date), 'dd/MM/yyyy HH:mm');
   };
 
   if (!data) {
@@ -125,7 +125,7 @@ export const ComprobanteModal: React.FC<ComprobanteModalProps> = ({
             <div class="info-row"><strong>Cliente:</strong> <span>${data.cliente}</span></div>
             ${data.telefono ? `<div class="info-row"><strong>Teléfono:</strong> <span>${data.telefono}</span></div>` : ''}
             ${data.vendedor ? `<div class="info-row"><strong>Vendedor:</strong> <span>${data.vendedor}</span></div>` : ''}
-            ${data.tipoventa ? `<div class="info-row"><strong>Tipo:</strong> <span>${data.tipoventa === 1 ? 'Contado' : 'Crédito'}</span></div>` : ''}
+            ${data.tipo_pago ? `<div class="info-row"><strong>Tipo:</strong> <span>${data.tipo_pago === 'contado' ? 'Contado' : 'Crédito'}</span></div>` : ''}
           </div>
 
           <table>
@@ -264,11 +264,11 @@ export const ComprobanteModal: React.FC<ComprobanteModalProps> = ({
                   <Text className="font-poppins-regular text-[#402612]">{data.vendedor}</Text>
                 </View>
               )}
-              {data.tipoventa && (
+              {data.tipo_pago && (
                 <View className="flex-row justify-between items-center">
                   <Text className="font-poppins-semibold text-[#8B5A3C]">Tipo:</Text>
                   <Text className="font-poppins-regular text-[#402612]">
-                    {data.tipoventa === 1 ? 'Contado' : 'Crédito'}
+                    {data.tipo_pago === 'contado' ? 'Contado' : 'Crédito'}
                   </Text>
                 </View>
               )}

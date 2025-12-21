@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { CommonActions, useNavigation } from '@react-navigation/native';
 import React from 'react';
 import {
   Alert,
@@ -14,6 +15,7 @@ import {
 
 export default function MenuScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { user, logout } = useAuth();
 
   const handleLogout = () => {
@@ -27,7 +29,13 @@ export default function MenuScreen() {
           style: 'destructive',
           onPress: async () => {
             await logout();
-            router.replace('/login');
+            // Resetear el stack de navegación para limpiar historial
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: 'login' }],
+              })
+            );
           },
         },
       ]

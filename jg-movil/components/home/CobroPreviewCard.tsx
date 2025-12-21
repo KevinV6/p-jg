@@ -27,10 +27,10 @@ export const CobroPreviewCard: React.FC<CobroPreviewCardProps> = ({
       </View>
       <View className="flex-1">
         <Text className="text-base font-poppins-bold text-[#3d2b1f] mb-1">
-          {cobro.nombrecobro}
+          {cobro.cliente?.nombrecliente || 'Cliente'}
         </Text>
         <Text className="text-sm font-poppins text-gray-500">
-          {format(cobro.fechacreacion, 'dd/MM/yyyy')}
+          {format(new Date(cobro.fecha), 'dd/MM/yyyy')}
         </Text>
       </View>
       <View className="items-end">

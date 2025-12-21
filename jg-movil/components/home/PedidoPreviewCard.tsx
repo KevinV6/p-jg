@@ -27,10 +27,10 @@ export const PedidoPreviewCard: React.FC<PedidoPreviewCardProps> = ({
       </View>
       <View className="flex-1">
         <Text className="text-base font-poppins-bold text-[#3d2b1f] mb-1">
-          {pedido.cliente?.cliente}
+          {pedido.cliente?.nombrecliente || 'Cliente'}
         </Text>
         <Text className="text-sm font-poppins text-gray-500">
-          {format(pedido.fechapedido, 'dd/MM/yyyy')}
+          {format(new Date(pedido.fecha), 'dd/MM/yyyy')}
         </Text>
       </View>
       <Ionicons name="chevron-forward" size={24} color="#402612" />

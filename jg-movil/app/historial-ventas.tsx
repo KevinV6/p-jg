@@ -65,7 +65,7 @@ export default function HistorialVentasScreen() {
             Venta #{item.idventa.toString().padStart(6, '0')}
           </Text>
           <Text className="text-sm font-poppins-regular text-[#8B5A3C]">
-            {item.cliente?.cliente || 'Cliente General'}
+            {item.cliente?.nombrecliente || 'Cliente General'}
           </Text>
         </View>
         <View className="items-end">
@@ -74,15 +74,15 @@ export default function HistorialVentasScreen() {
           </Text>
           <View
             className={`px-3 py-1 rounded-full ${
-              item.tipoventa === 1 ? 'bg-green-100' : 'bg-orange-100'
+              item.tipo_pago === 'contado' ? 'bg-green-100' : 'bg-orange-100'
             }`}
           >
             <Text
               className={`text-xs font-poppins-semibold ${
-                item.tipoventa === 1 ? 'text-green-700' : 'text-orange-700'
+                item.tipo_pago === 'contado' ? 'text-green-700' : 'text-orange-700'
               }`}
             >
-              {item.tipoventa === 1 ? 'Contado' : 'Crédito'}
+              {item.tipo_pago === 'contado' ? 'Contado' : 'Crédito'}
             </Text>
           </View>
         </View>
@@ -92,7 +92,7 @@ export default function HistorialVentasScreen() {
         <View className="flex-row items-center gap-2">
           <Ionicons name="calendar-outline" size={16} color="#8B5A3C" />
           <Text className="text-sm font-poppins-regular text-[#8B5A3C]">
-            {format(item.fecha, 'dd/MM/yyyy HH:mm')}
+            {format(new Date(item.fecha), 'dd/MM/yyyy HH:mm')}
           </Text>
         </View>
         <View className="flex-row items-center gap-2">

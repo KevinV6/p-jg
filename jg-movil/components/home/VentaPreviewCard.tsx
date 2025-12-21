@@ -13,7 +13,7 @@ export const VentaPreviewCard: React.FC<VentaPreviewCardProps> = ({
   venta,
   onPress,
 }) => {
-  const isContado = venta.tipoventa === 1;
+  const isContado = venta.tipo_pago === 'contado';
 
   return (
     <TouchableOpacity
@@ -29,10 +29,10 @@ export const VentaPreviewCard: React.FC<VentaPreviewCardProps> = ({
       </View>
       <View className="flex-1">
         <Text className="text-base font-poppins-bold text-[#3d2b1f] mb-1">
-          {venta.cliente?.cliente}
+          {venta.cliente?.nombrecliente || 'Cliente'}
         </Text>
         <Text className="text-sm font-poppins text-gray-500">
-          {format(venta.fecha, 'dd/MM/yyyy HH:mm')}
+          {format(new Date(venta.fecha), 'dd/MM/yyyy HH:mm')}
         </Text>
       </View>
       <View className="items-end">

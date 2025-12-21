@@ -3,10 +3,10 @@ import { SafeHeader, ScreenContainer } from '@/components/shared/ScreenContainer
 import ProductSelector, { ItemCarrito } from '@/components/venta/ProductSelector';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCobros } from '@/contexts/CobrosContext';
-import { mockClientes } from '@/data/mockData';
+import { useVentas } from '@/contexts/VentasContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Alert,
   ScrollView,
@@ -18,34 +18,46 @@ import {
 
 export default function CobroFormScreen() {
   const router = useRouter();
-  const { addCobro } = useCobros();
+  const { addCobro, isLoading } = useCobros();
+  const { clientes, loadClientes } = useVentas();
   const { user } = useAuth();
 
   // Estados principales
-  const [cliente, setCliente] = useState('');
-  const [clienteSugerencias, setClienteSugerencias] = useState<string[]>([]);
+  const [clienteId, setClienteId] = useState<number | null>(null);
+  const [clienteNombre, setClienteNombre] = useState('');
+  const [clienteSugerencias, setClienteSugerencias] = useState<typeof clientes>([]);
   const [telefono, setTelefono] = useState('');
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
+  const [fechaVencimiento, setFechaVencimiento] = useState('');
+  const [notas, setNotas] = useState('');
   
   // Estados de modales
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showComprobanteModal, setShowComprobanteModal] = useState(false);
   const [cobroRealizado, setCobroRealizado] = useState<any>(null);
 
+  useEffect(() => {
+    loadClientes();
+  }, []);
+
   const handleClienteChange = (text: string) => {
-    setCliente(text);
+    setClienteNombre(text);
+    setClienteId(null);
     if (text.length > 0) {
-      const filtered = mockClientes
-        .map(c => c.cliente)
-        .filter((c) => c.toLowerCase().includes(text.toLowerCase()));
+      const filtered = clientes.filter((c) => 
+        c.nombrecliente.toLowerCase().includes(text.toLowerCase()) ||
+        c.ci_nit?.toLowerCase().includes(text.toLowerCase())
+      );
       setClienteSugerencias(filtered.slice(0, 5));
     } else {
       setClienteSugerencias([]);
     }
   };
 
-  const selectCliente = (nombreCliente: string) => {
-    setCliente(nombreCliente);
+  const selectCliente = (cliente: typeof clientes[0]) => {
+    setClienteId(cliente.idcliente);
+    setClienteNombre(cliente.nombrecliente);
+    setTelefono(cliente.telefono || '');
     setClienteSugerencias([]);
   };
 
@@ -83,50 +95,36 @@ export default function CobroFormScreen() {
   };
 
   const handleFinalizarCobro = () => {
-    if (carrito.length === 0 || !cliente.trim() || !telefono.trim()) {
-      Alert.alert('Error', 'Complete todos los campos y agregue al menos un producto');
+    if (!clienteId) {
+      Alert.alert('Error', 'Seleccione un cliente');
       return;
     }
     setShowConfirmModal(true);
   };
 
-  const confirmarCobro = () => {
+  const confirmarCobro = async () => {
     const total = calcularTotal();
-    const auxDetalles = carrito.map((item, index) => ({
-      idauxventa: index + 1,
-      nombreproductoaux: item.producto.nombreproducto,
-      cantidadaux: item.cantidad,
-      pesoaux: item.cantidad,
-      unidadmedida: item.productounidad.unidad?.nombre || 'und',
-      precio: item.precio,
-      subtotal: item.subtotal,
-      estado: 1,
-      fechacreacion: new Date(),
-      usuarioid: user?.idusuario || 1,
-    }));
 
     const cobroData = {
-      nombrecobro: cliente,
-      telefono,
-      auxventa: 1,
+      clienteid: clienteId!,
       total,
-      estado: 1,
-      usuarioid: user?.idusuario || 1,
-      imagen: '',
-      fechacreacion: new Date(),
-      auxDetalles,
+      fecha_vencimiento: fechaVencimiento || undefined,
+      notas: notas || undefined,
     };
 
-    addCobro(cobroData);
-    setCobroRealizado({
-      ...cobroData,
-      cliente, // Para el comprobante
-      folio: `C-${Date.now()}`,
-      fecha: new Date(),
-    });
+    const result = await addCobro(cobroData);
     
-    setShowConfirmModal(false);
-    setShowComprobanteModal(true);
+    if (result) {
+      setCobroRealizado({
+        ...result,
+        cliente: clienteNombre,
+      });
+      setShowConfirmModal(false);
+      setShowComprobanteModal(true);
+    } else {
+      Alert.alert('Error', 'No se pudo registrar el cobro');
+      setShowConfirmModal(false);
+    }
   };
 
   const handleNavigateToCobros = () => {
@@ -164,19 +162,22 @@ export default function CobroFormScreen() {
               className="bg-[#F6EBD7] border border-[#8B5A3C] rounded-xl px-4 py-3 text-[#402612] font-poppins-regular"
               placeholder="Nombre del cliente"
               placeholderTextColor="#8B5A3C"
-              value={cliente}
+              value={clienteNombre}
               onChangeText={handleClienteChange}
             />
             {clienteSugerencias.length > 0 && (
               <View className="bg-white border border-[#8B5A3C] rounded-xl mt-1 max-h-40">
                 <ScrollView>
-                  {clienteSugerencias.map((sug, index) => (
+                  {clienteSugerencias.map((sug) => (
                     <TouchableOpacity
-                      key={index}
+                      key={sug.idcliente}
                       onPress={() => selectCliente(sug)}
                       className="px-4 py-2 border-b border-[#E5E5E5]"
                     >
-                      <Text className="text-[#402612] font-poppins-regular">{sug}</Text>
+                      <Text className="text-[#402612] font-poppins-regular">{sug.nombrecliente}</Text>
+                      {sug.ci_nit && (
+                        <Text className="text-[#8B5A3C] font-poppins-regular text-sm">CI/NIT: {sug.ci_nit}</Text>
+                      )}
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
@@ -187,7 +188,7 @@ export default function CobroFormScreen() {
           {/* Campo Teléfono */}
           <View>
             <Text className="text-sm font-poppins-semibold text-[#402612] mb-2">
-              Teléfono *
+              Teléfono
             </Text>
             <TextInput
               className="bg-[#F6EBD7] border border-[#8B5A3C] rounded-xl px-4 py-3 text-[#402612] font-poppins-regular"
@@ -196,18 +197,79 @@ export default function CobroFormScreen() {
               value={telefono}
               onChangeText={setTelefono}
               keyboardType="phone-pad"
+              editable={false}
             />
           </View>
         </View>
 
-        {/* Componente de Selección de Productos */}
-        <ProductSelector
-          carrito={carrito}
-          onAddToCart={handleAddToCart}
-          onRemoveFromCart={handleRemoveFromCart}
-          title="Productos del Cobro"
-          buttonText="Seleccionar Producto"
-        />
+        {/* Información del Cobro */}
+        <View className="bg-white rounded-xl p-4 mb-4 border border-[#E5E5E5]">
+          <Text className="text-lg font-poppins-bold text-[#402612] mb-4">
+            Información del Cobro
+          </Text>
+
+          {/* Campo Total */}
+          <View className="mb-4">
+            <Text className="text-sm font-poppins-semibold text-[#402612] mb-2">
+              Total a Cobrar (Bs) *
+            </Text>
+            <TextInput
+              className="bg-[#F6EBD7] border border-[#8B5A3C] rounded-xl px-4 py-3 text-[#402612] font-poppins-regular"
+              placeholder="0.00"
+              placeholderTextColor="#8B5A3C"
+              value={carrito.length > 0 ? calcularTotal().toFixed(2) : ''}
+              onChangeText={(text) => {
+                // Si hay carrito, el total se calcula automáticamente
+                // Si no, se puede ingresar manualmente
+                if (carrito.length === 0) {
+                  const newItem: ItemCarrito = {
+                    idproducto: 0,
+                    idproductounidad: 0,
+                    cantidad: 1,
+                    precio: parseFloat(text) || 0,
+                    precioUnitario: parseFloat(text) || 0,
+                    subtotal: parseFloat(text) || 0,
+                    producto: { idproducto: 0, nombreproducto: 'Cobro Manual', imagen: '', categoriaid: 0, estado: 1 } as any,
+                    productounidad: { idproductounidad: 0, unidadid: 0, precio: parseFloat(text) || 0 } as any,
+                  };
+                  setCarrito([newItem]);
+                }
+              }}
+              keyboardType="decimal-pad"
+            />
+          </View>
+
+          {/* Campo Fecha de Vencimiento */}
+          <View className="mb-4">
+            <Text className="text-sm font-poppins-semibold text-[#402612] mb-2">
+              Fecha de Vencimiento
+            </Text>
+            <TextInput
+              className="bg-[#F6EBD7] border border-[#8B5A3C] rounded-xl px-4 py-3 text-[#402612] font-poppins-regular"
+              placeholder="YYYY-MM-DD (opcional)"
+              placeholderTextColor="#8B5A3C"
+              value={fechaVencimiento}
+              onChangeText={setFechaVencimiento}
+            />
+          </View>
+
+          {/* Campo Notas */}
+          <View>
+            <Text className="text-sm font-poppins-semibold text-[#402612] mb-2">
+              Notas
+            </Text>
+            <TextInput
+              className="bg-[#F6EBD7] border border-[#8B5A3C] rounded-xl px-4 py-3 text-[#402612] font-poppins-regular"
+              placeholder="Notas adicionales (opcional)"
+              placeholderTextColor="#8B5A3C"
+              value={notas}
+              onChangeText={setNotas}
+              multiline
+              numberOfLines={3}
+              style={{ height: 80, textAlignVertical: 'top' }}
+            />
+          </View>
+        </View>
 
         {/* Espacio extra al final para que el contenido no quede tapado */}
         <View style={{ height: 140 }} />
@@ -233,27 +295,25 @@ export default function CobroFormScreen() {
         {/* Botón Finalizar */}
         <TouchableOpacity
           onPress={handleFinalizarCobro}
-          disabled={carrito.length === 0 || !cliente.trim() || !telefono.trim()}
+          disabled={!clienteId || calcularTotal() <= 0 || isLoading}
           className={`rounded-xl py-4 flex-row items-center justify-center ${
-            carrito.length > 0 && cliente.trim() && telefono.trim()
+            clienteId && calcularTotal() > 0 && !isLoading
               ? 'bg-[#402612]'
               : 'bg-[#8B5A3C]/50'
           }`}
         >
           <Ionicons name="cash-outline" size={24} color="#F6EBD7" />
           <Text className="text-[#F6EBD7] font-poppins-bold text-lg ml-2">
-            Finalizar Cobro
+            {isLoading ? 'Procesando...' : 'Finalizar Cobro'}
           </Text>
         </TouchableOpacity>
         
         {/* Mensaje de ayuda */}
-        {(carrito.length === 0 || !cliente.trim() || !telefono.trim()) && (
+        {(!clienteId || calcularTotal() <= 0) && (
           <Text className="text-xs text-[#8B5A3C] text-center mt-2 font-poppins-regular">
-            {carrito.length === 0 
-              ? 'Agregue al menos un producto' 
-              : !cliente.trim() 
-                ? 'Ingrese el nombre del cliente'
-                : 'Ingrese el teléfono del cliente'}
+            {!clienteId 
+              ? 'Seleccione un cliente' 
+              : 'Ingrese el monto a cobrar'}
           </Text>
         )}
       </View>
@@ -266,8 +326,8 @@ export default function CobroFormScreen() {
         title="Confirmar Cobro"
         message="¿Estás seguro de registrar este cobro?"
         data={{
-          cliente,
-          productos: carrito.length,
+          cliente: clienteNombre,
+          productos: 1,
           total: calcularTotal()
         }}
       />

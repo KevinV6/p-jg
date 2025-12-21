@@ -46,6 +46,7 @@ export default function ProductSelector({
   const [showProductSelector, setShowProductSelector] = useState(false);
   const [showVariantSelector, setShowVariantSelector] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null);
+  const [selectedVariante, setSelectedVariante] = useState<OpcionVariante | null>(null);
   const [selectedUnidad, setSelectedUnidad] = useState<ProductoUnidad | null>(null);
   const [cantidad, setCantidad] = useState('1');
   const [precioEditado, setPrecioEditado] = useState('');
@@ -61,20 +62,33 @@ export default function ProductSelector({
     setSelectedProduct(producto);
     setShowProductSelector(false);
 
-    if (producto.unidades && producto.unidades.length > 1) {
+    // Verificar si tiene variantes
+    const tieneVariantes = producto.variantes && producto.variantes.length > 0 && 
+                           producto.variantes.some(v => v.opciones && v.opciones.length > 0);
+
+    if (tieneVariantes) {
+      // Si tiene variantes, mostrar selector de variantes
       setShowVariantSelector(true);
-    } else if (producto.unidades && producto.unidades.length === 1) {
-      setSelectedUnidad(producto.unidades[0]);
-      setPrecioEditado(producto.unidades[0].precio.toString());
-      setCantidad('1');
+    } else {
+      // Si no tiene variantes, seleccionar la primera unidad automáticamente
+      if (producto.unidades && producto.unidades.length > 0) {
+        setSelectedUnidad(producto.unidades[0]);
+        setPrecioEditado(producto.unidades[0].precio.toString());
+        setCantidad('1');
+      }
     }
   };
 
-  const handleSelectUnidad = (unidad: ProductoUnidad) => {
-    setSelectedUnidad(unidad);
-    setPrecioEditado(unidad.precio.toString());
+  const handleSelectVariante = (opcionVariante: OpcionVariante) => {
+    setSelectedVariante(opcionVariante);
     setShowVariantSelector(false);
-    setCantidad('1');
+    
+    // Seleccionar la primera unidad de medida automáticamente
+    if (selectedProduct?.unidades && selectedProduct.unidades.length > 0) {
+      setSelectedUnidad(selectedProduct.unidades[0]);
+      setPrecioEditado(selectedProduct.unidades[0].precio.toString());
+      setCantidad('1');
+    }
   };
 
   const handleChangeUnidad = (unidadId: number) => {
@@ -104,6 +118,8 @@ export default function ProductSelector({
       producto: selectedProduct,
       idproductounidad: selectedUnidad.idproductounidad,
       productounidad: selectedUnidad,
+      idopcionvariante: selectedVariante?.idopcionvariante,
+      opcionvariante: selectedVariante || undefined,
       cantidad: cantidadNum,
       precio: precioNum,
       precioUnitario: precioNum,
@@ -112,6 +128,7 @@ export default function ProductSelector({
 
     onAddToCart(nuevoItem);
     setSelectedProduct(null);
+    setSelectedVariante(null);
     setSelectedUnidad(null);
     setCantidad('1');
     setPrecioEditado('');
@@ -143,9 +160,9 @@ export default function ProductSelector({
       {selectedProduct && selectedUnidad && (
         <View className="bg-white rounded-xl p-4 mb-4 border border-[#8B5A3C]">
           <View className="flex-row items-center mb-3">
-            {(selectedProduct.imagen || selectedProduct.imagenproducto) && (
+            {(selectedVariante?.imagenvariante || selectedProduct.imagen || selectedProduct.imagenproducto) && (
               <Image
-                source={{ uri: selectedProduct.imagen || selectedProduct.imagenproducto }}
+                source={{ uri: selectedVariante?.imagenvariante || selectedProduct.imagen || selectedProduct.imagenproducto }}
                 className="w-16 h-16 rounded-lg mr-3"
               />
             )}
@@ -153,6 +170,11 @@ export default function ProductSelector({
               <Text className="text-base font-poppins-semibold text-[#402612]">
                 {selectedProduct.nombreproducto}
               </Text>
+              {selectedVariante && (
+                <Text className="text-sm font-poppins-regular text-[#8B5A3C]">
+                  {selectedVariante.nombreopcionvariante}
+                </Text>
+              )}
               <Text className="text-sm font-poppins-regular text-[#8B5A3C]">
                 {selectedUnidad.unidad?.nombre}
               </Text>
@@ -259,6 +281,11 @@ export default function ProductSelector({
                 <Text className="text-sm font-poppins-semibold text-[#402612]">
                   {item.producto.nombreproducto}
                 </Text>
+                {item.opcionvariante && (
+                  <Text className="text-xs font-poppins-regular text-[#8B5A3C]">
+                    {item.opcionvariante.nombreopcionvariante}
+                  </Text>
+                )}
                 <Text className="text-xs font-poppins-regular text-[#8B5A3C]">
                   {item.productounidad.unidad?.nombre} x {item.cantidad}
                 </Text>
@@ -352,23 +379,28 @@ export default function ProductSelector({
           <View className="bg-[#F6EBD7] rounded-t-3xl max-h-[60%]">
             <View className="bg-[#402612] rounded-t-3xl px-4 py-4 flex-row items-center justify-between">
               <Text className="text-xl font-poppins-bold text-[#F6EBD7]">
-                Seleccionar Presentación
+                Seleccionar Variante
               </Text>
               <TouchableOpacity onPress={() => setShowVariantSelector(false)}>
                 <Ionicons name="close" size={28} color="#F6EBD7" />
               </TouchableOpacity>
             </View>
 
-            {selectedProduct?.unidades && (
+            {selectedProduct?.variantes && selectedProduct.variantes.length > 0 && (
               <FlatList
-                data={selectedProduct.unidades}
-                keyExtractor={(item) => item.idproductounidad.toString()}
+                data={selectedProduct.variantes.flatMap(v => v.opciones || [])}
+                keyExtractor={(item) => item.idopcionvariante.toString()}
                 renderItem={({ item }) => (
                   <TouchableOpacity
-                    onPress={() => handleSelectUnidad(item)}
+                    onPress={() => handleSelectVariante(item)}
                     className="bg-white mx-4 my-2 rounded-xl p-4 flex-row items-center justify-between border border-[#E5E5E5]"
                   >
-                    {(selectedProduct.imagen || selectedProduct.imagenproducto) && (
+                    {item.imagenvariante ? (
+                      <Image
+                        source={{ uri: item.imagenvariante }}
+                        className="w-12 h-12 rounded-lg mr-3"
+                      />
+                    ) : (selectedProduct.imagen || selectedProduct.imagenproducto) && (
                       <Image
                         source={{ uri: selectedProduct.imagen || selectedProduct.imagenproducto }}
                         className="w-12 h-12 rounded-lg mr-3"
@@ -376,15 +408,13 @@ export default function ProductSelector({
                     )}
                     <View className="flex-1">
                       <Text className="text-base font-poppins-semibold text-[#402612]">
-                        {item.unidad?.nombre}
+                        {item.nombreopcionvariante}
                       </Text>
                       <Text className="text-xs font-poppins-regular text-[#8B5A3C]">
-                        {item.unidad?.abreviatura}
+                        {selectedProduct.nombreproducto}
                       </Text>
                     </View>
-                    <Text className="text-lg font-poppins-bold text-[#402612]">
-                      Bs. {item.precio.toFixed(2)}
-                    </Text>
+                    <Ionicons name="chevron-forward" size={20} color="#8B5A3C" />
                   </TouchableOpacity>
                 )}
                 contentContainerStyle={{ paddingBottom: 20, paddingTop: 10 }}

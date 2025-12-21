@@ -58,17 +58,18 @@ export default function CobrosScreen() {
   const handleVerComprobante = (cobro: Cobro) => {
     setShowDetalle(false);
     setCobroComprobante({
-      cliente: cobro.nombrecobro,
-      telefono: cobro.telefono,
+      cliente: cobro.cliente?.nombrecliente || 'Cliente',
+      telefono: cobro.cliente?.telefono || '',
       total: cobro.total,
       folio: `C-${cobro.idcobro}`,
-      fecha: cobro.fechacreacion,
-      auxDetalles: cobro.auxDetalles?.map(d => ({
-        nombreproductoaux: d.nombreproductoaux,
-        cantidadaux: d.cantidadaux,
-        unidadmedida: d.unidadmedida,
-        precio: d.precio,
-        subtotal: d.cantidadaux * d.precio,
+      fecha: cobro.fecha,
+      detalle: cobro.venta?.detalles?.map((d) => ({
+        nombreProducto: d.producto?.nombreproducto || 'Producto',
+        nombreVariante: d.opcionvariante?.nombreopcionvariante,
+        cantidad: d.cantidad,
+        unidad: d.productounidad?.unidad?.abreviatura || 'und',
+        precio_aplicado: d.precio_aplicado || 0,
+        subtotal: d.subtotal || 0,
       })) || [],
     });
     setShowComprobante(true);

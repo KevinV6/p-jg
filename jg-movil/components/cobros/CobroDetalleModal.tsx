@@ -2,7 +2,7 @@ import { Cobro } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import React from 'react';
-import { Image, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 interface CobroDetalleModalProps {
   visible: boolean;
@@ -22,12 +22,20 @@ export const CobroDetalleModal: React.FC<CobroDetalleModalProps> = ({
   if (!cobro) return null;
 
   const getEstadoConfig = (estado: number) => {
-    return estado === 1
-      ? { color: '#8B5A3C', text: 'Pendiente', bgColor: '#8B5A3C15', icon: 'time-outline' as const }
-      : { color: '#5D8A66', text: 'Pagado', bgColor: '#5D8A6615', icon: 'checkmark-circle-outline' as const };
+    switch (estado) {
+      case 1:
+        return { color: '#8B5A3C', text: 'Pendiente', bgColor: '#8B5A3C15', icon: 'time-outline' as const };
+      case 2:
+        return { color: '#5D8A66', text: 'Pagado', bgColor: '#5D8A6615', icon: 'checkmark-circle-outline' as const };
+      case 0:
+        return { color: '#C45C5C', text: 'Anulado', bgColor: '#C45C5C15', icon: 'close-circle-outline' as const };
+      default:
+        return { color: '#8B5A3C', text: 'Desconocido', bgColor: '#8B5A3C15', icon: 'help-outline' as const };
+    }
   };
 
   const estadoConfig = getEstadoConfig(cobro.estado);
+  const saldo = cobro.saldo ?? (cobro.total - cobro.monto_pagado);
 
   return (
     <Modal
@@ -76,8 +84,16 @@ export const CobroDetalleModal: React.FC<CobroDetalleModalProps> = ({
                     Cliente
                   </Text>
                   <Text className="text-lg font-poppins-bold text-[#402612]">
-                    {cobro.nombrecobro}
+                    {cobro.cliente?.nombrecliente || 'Cliente'}
                   </Text>
+                  {cobro.cliente?.telefono && (
+                    <View className="flex-row items-center mt-1">
+                      <Ionicons name="call-outline" size={14} color="#8B5A3C" />
+                      <Text className="text-sm font-poppins-medium text-[#8B5A3C] ml-1">
+                        {cobro.cliente.telefono}
+                      </Text>
+                    </View>
+                  )}
                 </View>
                 <View
                   className="px-3 py-1.5 rounded-full"
@@ -95,10 +111,10 @@ export const CobroDetalleModal: React.FC<CobroDetalleModalProps> = ({
               <View className="flex-row">
                 <View className="flex-1 mr-4">
                   <Text className="text-xs font-poppins-medium text-[#8B5A3C] mb-1">
-                    Teléfono
+                    Origen
                   </Text>
                   <Text className="text-base font-poppins-semibold text-[#402612]">
-                    {cobro.telefono}
+                    {cobro.origen === 'venta' ? 'Venta a crédito' : 'Cobro manual'}
                   </Text>
                 </View>
                 <View className="flex-1">
@@ -106,10 +122,21 @@ export const CobroDetalleModal: React.FC<CobroDetalleModalProps> = ({
                     Fecha
                   </Text>
                   <Text className="text-base font-poppins-semibold text-[#402612]">
-                    {format(cobro.fechacreacion, 'dd/MM/yyyy')}
+                    {format(new Date(cobro.fecha), 'dd/MM/yyyy')}
                   </Text>
                 </View>
               </View>
+
+              {cobro.fecha_vencimiento && (
+                <View className="mt-4 pt-4 border-t border-[#E8DFD4]">
+                  <Text className="text-xs font-poppins-medium text-[#8B5A3C] mb-1">
+                    Fecha de vencimiento
+                  </Text>
+                  <Text className="text-base font-poppins-semibold text-[#402612]">
+                    {format(new Date(cobro.fecha_vencimiento), 'dd/MM/yyyy')}
+                  </Text>
+                </View>
+              )}
 
               {cobro.estado === 2 && cobro.fechapago && (
                 <View className="mt-4 pt-4 border-t border-[#E8DFD4]">
@@ -117,85 +144,108 @@ export const CobroDetalleModal: React.FC<CobroDetalleModalProps> = ({
                     Fecha de pago
                   </Text>
                   <Text className="text-base font-poppins-semibold text-[#5D8A66]">
-                    {format(cobro.fechapago, 'dd/MM/yyyy')}
+                    {format(new Date(cobro.fechapago), 'dd/MM/yyyy')}
+                  </Text>
+                </View>
+              )}
+
+              {cobro.notas && (
+                <View className="mt-4 pt-4 border-t border-[#E8DFD4]">
+                  <Text className="text-xs font-poppins-medium text-[#8B5A3C] mb-1">
+                    Notas
+                  </Text>
+                  <Text className="text-base font-poppins-regular text-[#402612] italic">
+                    "{cobro.notas}"
                   </Text>
                 </View>
               )}
             </View>
 
-            {/* Productos */}
+            {/* Resumen de pagos */}
             <Text className="text-sm font-poppins-bold text-[#402612] mb-3">
-              Productos
+              Resumen de Pagos
             </Text>
-            <View className="bg-white rounded-2xl border border-[#E8DFD4] overflow-hidden mb-4">
-              {cobro.auxDetalles?.map((detalle, index) => (
-                <View
-                  key={index}
-                  className={`flex-row items-center p-4 ${
-                    index !== (cobro.auxDetalles?.length || 0) - 1 ? 'border-b border-[#E8DFD4]' : ''
-                  }`}
-                >
-                  {/* Imagen del producto */}
-                  <View className="w-14 h-14 rounded-xl bg-[#F6EBD7] mr-3 overflow-hidden items-center justify-center">
-                    {cobro.imagen ? (
-                      <Image 
-                        source={{ uri: cobro.imagen }} 
-                        className="w-full h-full"
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <Ionicons name="cube-outline" size={24} color="#8B5A3C" />
-                    )}
-                  </View>
-                  
-                  <View className="flex-1">
-                    <Text className="text-sm font-poppins-semibold text-[#402612] mb-1">
-                      {detalle.nombreproductoaux}
-                    </Text>
-                    <Text className="text-xs font-poppins-medium text-[#8B5A3C]">
-                      {detalle.cantidadaux} {detalle.unidadmedida} × Bs {detalle.precio.toFixed(2)}
-                    </Text>
-                  </View>
-                  <Text className="text-base font-poppins-bold text-[#402612]">
-                    Bs {(detalle.cantidadaux * detalle.precio).toFixed(2)}
-                  </Text>
-                </View>
-              ))}
-              
-              {/* Si no hay detalles */}
-              {(!cobro.auxDetalles || cobro.auxDetalles.length === 0) && (
-                <View className="p-6 items-center">
-                  <Ionicons name="cube-outline" size={40} color="#8B5A3C" />
-                  <Text className="text-sm font-poppins-medium text-[#8B5A3C] mt-2">
-                    Sin productos registrados
-                  </Text>
-                </View>
-              )}
+            <View className="bg-white rounded-2xl border border-[#E8DFD4] overflow-hidden mb-4 p-4">
+              <View className="flex-row justify-between items-center mb-3">
+                <Text className="text-sm font-poppins-medium text-[#8B5A3C]">
+                  Total del cobro
+                </Text>
+                <Text className="text-base font-poppins-bold text-[#402612]">
+                  Bs {cobro.total.toFixed(2)}
+                </Text>
+              </View>
+              <View className="flex-row justify-between items-center mb-3">
+                <Text className="text-sm font-poppins-medium text-[#8B5A3C]">
+                  Monto pagado
+                </Text>
+                <Text className="text-base font-poppins-bold text-[#5D8A66]">
+                  Bs {cobro.monto_pagado.toFixed(2)}
+                </Text>
+              </View>
+              <View className="flex-row justify-between items-center pt-3 border-t border-[#E8DFD4]">
+                <Text className="text-sm font-poppins-bold text-[#402612]">
+                  Saldo pendiente
+                </Text>
+                <Text className="text-lg font-poppins-black" style={{ color: saldo > 0 ? '#C45C5C' : '#5D8A66' }}>
+                  Bs {saldo.toFixed(2)}
+                </Text>
+              </View>
             </View>
+
+            {/* Historial de pagos */}
+            {cobro.historial_pagos && cobro.historial_pagos.length > 0 && (
+              <>
+                <Text className="text-sm font-poppins-bold text-[#402612] mb-3">
+                  Historial de Pagos
+                </Text>
+                <View className="bg-white rounded-2xl border border-[#E8DFD4] overflow-hidden mb-4">
+                  {cobro.historial_pagos.map((pago, index) => (
+                    <View
+                      key={pago.idhistorial || index}
+                      className={`flex-row items-center justify-between p-4 ${
+                        index !== cobro.historial_pagos!.length - 1 ? 'border-b border-[#E8DFD4]' : ''
+                      }`}
+                    >
+                      <View>
+                        <Text className="text-sm font-poppins-semibold text-[#402612]">
+                          Bs {pago.monto.toFixed(2)}
+                        </Text>
+                        <Text className="text-xs font-poppins-medium text-[#8B5A3C]">
+                          {pago.metodo_pago}
+                        </Text>
+                      </View>
+                      <Text className="text-xs font-poppins-medium text-[#8B5A3C]">
+                        {format(new Date(pago.fecha), 'dd/MM/yyyy HH:mm')}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
 
             {/* Total */}
             <View
               className="flex-row justify-between items-center p-4 rounded-2xl bg-[#402612]"
             >
               <Text className="text-base font-poppins-bold text-[#F6EBD7]">
-                Total
+                Saldo pendiente
               </Text>
               <Text className="text-xl font-poppins-black text-[#F6EBD7]">
-                Bs {cobro.total.toFixed(2)}
+                Bs {saldo.toFixed(2)}
               </Text>
             </View>
 
             {/* Botones de acción */}
             <View className="mt-4 gap-3">
               {/* Botón Ver Comprobante */}
-              {onVerComprobante && (
+              {onVerComprobante && cobro.venta && (
                 <TouchableOpacity
                   onPress={() => onVerComprobante(cobro)}
                   className="flex-row items-center justify-center bg-white border-2 border-[#402612] rounded-xl py-3.5"
                 >
                   <Ionicons name="receipt-outline" size={20} color="#402612" />
                   <Text className="text-base font-poppins-bold text-[#402612] ml-2">
-                    Ver Comprobante
+                    Ver Venta Asociada
                   </Text>
                 </TouchableOpacity>
               )}

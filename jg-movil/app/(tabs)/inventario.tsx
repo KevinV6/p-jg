@@ -8,24 +8,24 @@ import { AppHeader } from '@/components/shared/AppHeader';
 import { EmptyState, FloatingActionButton } from '@/components/shared/CommonComponents';
 import { ScreenContainer } from '@/components/shared/ScreenContainer';
 import { useInventario } from '@/contexts/InventarioContext';
-import { mockCategorias, mockUnidadesMedida } from '@/data/mockData';
 import { Producto } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { FlatList, Modal, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { FlatList, Modal, Text, TouchableOpacity, View, ActivityIndicator, RefreshControl } from 'react-native';
 
 type ViewMode = 'list' | 'grid';
 
 export default function InventarioScreen() {
   const router = useRouter();
-  const { productos, searchProductos } = useInventario();
+  const { productos, categorias, unidades, searchProductos, isLoading, refresh } = useInventario();
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<number | null>(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showUnitModal, setShowUnitModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const getFilteredProductos = () => {
     let result = searchQuery ? searchProductos(searchQuery) : productos;
@@ -49,6 +49,12 @@ export default function InventarioScreen() {
     setSelectedCategory(null);
     setSelectedUnit(null);
     setSearchQuery('');
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refresh();
+    setRefreshing(false);
   };
 
   const renderProductoList = ({ item }: { item: Producto }) => (
@@ -89,7 +95,7 @@ export default function InventarioScreen() {
             selectedCategory ? 'text-white' : 'text-[#402612]'
           }`}>
             {selectedCategory 
-              ? mockCategorias.find(c => c.idcategoria === selectedCategory)?.nombrecategoria
+              ? categorias.find(c => c.idcategoria === selectedCategory)?.nombrecategoria
               : 'Categoría'
             }
           </Text>
@@ -112,7 +118,7 @@ export default function InventarioScreen() {
             selectedUnit ? 'text-white' : 'text-[#402612]'
           }`}>
             {selectedUnit 
-              ? mockUnidadesMedida.find(u => u.idunidad === selectedUnit)?.abreviatura
+              ? unidades.find(u => u.idunidad === selectedUnit)?.abreviatura
               : 'Unidad'
             }
           </Text>
@@ -153,13 +159,22 @@ export default function InventarioScreen() {
         columnWrapperStyle={viewMode === 'grid' ? { gap: 12 } : undefined}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         ListEmptyComponent={() => (
-          <EmptyState
-            icon="cube-outline"
-            title="No hay productos"
-            subtitle="Agrega tu primer producto al inventario"
-          />
+          isLoading ? (
+            <View className="flex-1 justify-center items-center py-8">
+              <ActivityIndicator size="large" color="#402612" />
+            </View>
+          ) : (
+            <EmptyState
+              icon="cube-outline"
+              title="No hay productos"
+              subtitle="Agrega tu primer producto al inventario"
+            />
+          )
         )}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       />
 
       <FloatingActionButton
@@ -186,7 +201,7 @@ export default function InventarioScreen() {
             </View>
 
             <FlatList
-              data={[{ idcategoria: 0, nombrecategoria: 'Todas las categorías' }, ...mockCategorias]}
+              data={[{ idcategoria: 0, nombrecategoria: 'Todas las categorías' }, ...categorias]}
               keyExtractor={(item) => item.idcategoria.toString()}
               renderItem={({ item }) => (
                 <TouchableOpacity
@@ -237,7 +252,7 @@ export default function InventarioScreen() {
             </View>
 
             <FlatList
-              data={[{ idunidad: 0, nombre: 'Todas las unidades', abreviatura: 'Todas' }, ...mockUnidadesMedida]}
+              data={[{ idunidad: 0, nombre: 'Todas las unidades', abreviatura: 'Todas' }, ...unidades]}
               keyExtractor={(item) => item.idunidad.toString()}
               renderItem={({ item }) => (
                 <TouchableOpacity

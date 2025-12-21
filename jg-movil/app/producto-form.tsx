@@ -1,6 +1,5 @@
 import { SafeHeader, ScreenContainer } from '@/components/shared/ScreenContainer';
 import { useInventario } from '@/contexts/InventarioContext';
-import { mockCategorias, mockUnidadesMedida } from '@/data/mockData';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
@@ -18,7 +17,9 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from 'react-native';
+import { productoService } from '@/services/productoService';
 
 interface UnidadPrecio {
   unidadid: number;
@@ -44,17 +45,21 @@ interface Variante {
 export default function ProductoFormScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { productos, addProducto, updateProducto } = useInventario();
+  const { productos, categorias, unidades: unidadesMedida, addProducto, updateProducto, isLoading } = useInventario();
   const isEditing = !!params.id;
 
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [categoriaId, setCategoriaId] = useState(1);
   const [imagen, setImagen] = useState('');
+  const [imagenOriginal, setImagenOriginal] = useState(''); // Para saber si la imagen cambió
   const [unidades, setUnidades] = useState<UnidadPrecio[]>([{ unidadid: 1, precio: '' }]);
   const [variantes, setVariantes] = useState<Variante[]>([]);
   const [showVariantes, setShowVariantes] = useState(false);
   const [showCategoriaModal, setShowCategoriaModal] = useState(false);
+  const [showUnidadModal, setShowUnidadModal] = useState(false);
+  const [unidadModalIndex, setUnidadModalIndex] = useState<number>(0);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (isEditing) {
@@ -64,10 +69,12 @@ export default function ProductoFormScreen() {
         setDescripcion(producto.descripcion || '');
         setCategoriaId(producto.categoriaid);
         setImagen(producto.imagen);
+        setImagenOriginal(producto.imagen); // Guardar imagen original para comparar
         
         if (producto.unidades && producto.unidades.length > 0) {
           setUnidades(producto.unidades.map(u => ({
-            unidadid: u.unidadid,
+            // El backend puede traer unidadid directo o dentro de unidad.idunidad
+            unidadid: u.unidadid || u.unidad?.idunidad || 0,
             precio: u.precio.toString(),
           })));
         }
@@ -76,7 +83,7 @@ export default function ProductoFormScreen() {
           setShowVariantes(true);
           // Cargar variantes con precios individuales por opción
           const unidadesActuales = producto.unidades?.map(u => ({
-            unidadid: u.unidadid,
+            unidadid: u.unidadid || u.unidad?.idunidad || 0,
             precio: u.precio.toString(),
           })) || [];
           
@@ -84,7 +91,7 @@ export default function ProductoFormScreen() {
             nombre: v.nombrevariante,
             opciones: v.opciones?.map(o => ({
               nombre: o.nombreopcionvariante,
-              imagen: o.imagenvariante,
+              imagen: o.imagenvariante || '',
               // Inicializar precios de cada opción con los precios del producto principal
               precios: unidadesActuales.map(u => ({
                 unidadid: u.unidadid,
@@ -95,7 +102,7 @@ export default function ProductoFormScreen() {
         }
       }
     }
-  }, [params.id]);
+  }, [params.id, productos]);
 
   const pickImage = async (useCamera: boolean = false) => {
     let result;
@@ -248,7 +255,12 @@ export default function ProductoFormScreen() {
     return unidadPrincipal?.precio || '';
   };
 
-  const handleSave = () => {
+  // Verificar si la imagen es local (necesita subirse)
+  const isLocalImage = (uri: string) => {
+    return uri.startsWith('file://') || uri.startsWith('content://') || uri.includes('ImagePicker');
+  };
+
+  const handleSave = async () => {
     if (!nombre.trim()) {
       Alert.alert('Error', 'El nombre del producto es requerido');
       return;
@@ -275,25 +287,58 @@ export default function ProductoFormScreen() {
       }
     }
 
-    const productoData = {
-      nombreproducto: nombre,
-      descripcion,
-      categoriaid: categoriaId,
-      imagen,
-      unidades: unidades.map(u => ({
-        unidadid: u.unidadid,
-        precio: parseFloat(u.precio),
-      })) as any,
-      variantes: showVariantes ? variantes as any : undefined,
-    };
+    setIsSaving(true);
 
-    if (isEditing) {
-      updateProducto(Number(params.id), productoData as any);
-    } else {
-      addProducto(productoData as any);
+    try {
+      let imagenUrl = imagen;
+
+      // Si la imagen es local, subirla a Supabase
+      if (isLocalImage(imagen)) {
+        const uploadResult = await productoService.uploadImage({
+          uri: imagen,
+          mimeType: 'image/jpeg',
+          fileName: `producto_${Date.now()}.jpg`,
+        });
+
+        if (!uploadResult.success || !uploadResult.data?.url) {
+          Alert.alert('Error', 'No se pudo subir la imagen');
+          setIsSaving(false);
+          return;
+        }
+
+        imagenUrl = uploadResult.data.url;
+      }
+
+      const productoData = {
+        nombreproducto: nombre,
+        descripcion,
+        categoriaid: categoriaId,
+        imagen: imagenUrl,
+        unidades: unidades.map(u => ({
+          unidadid: u.unidadid,
+          precio: parseFloat(u.precio),
+        })) as any,
+        variantes: showVariantes ? variantes as any : undefined,
+      };
+
+      let success = false;
+      if (isEditing) {
+        success = await updateProducto(Number(params.id), productoData as any);
+      } else {
+        success = await addProducto(productoData as any);
+      }
+
+      if (success) {
+        router.back();
+      } else {
+        Alert.alert('Error', 'No se pudo guardar el producto');
+      }
+    } catch (error) {
+      console.error('Error guardando producto:', error);
+      Alert.alert('Error', 'Ocurrió un error al guardar el producto');
+    } finally {
+      setIsSaving(false);
     }
-
-    router.back();
   };
 
   const showImageOptions = () => {
@@ -399,7 +444,7 @@ export default function ProductoFormScreen() {
             className="bg-white border border-gray-200 rounded-xl px-4 py-4 flex-row items-center justify-between"
           >
             <Text className="text-base text-[#3d2b1f] font-poppins">
-              {mockCategorias.find(c => c.idcategoria === categoriaId)?.nombrecategoria || 'Seleccionar categoría'}
+              {categorias.find(c => c.idcategoria === categoriaId)?.nombrecategoria || 'Seleccionar categoría'}
             </Text>
             <Ionicons name="chevron-down" size={20} color="#8B5A3C" />
           </TouchableOpacity>
@@ -419,17 +464,21 @@ export default function ProductoFormScreen() {
               <View className="flex-row items-end gap-2">
                 <View className="flex-[2]">
                   <Text className="text-sm font-poppins-semibold mb-2 text-gray-600">Unidad</Text>
-                  <View className="border border-gray-200 rounded-xl overflow-hidden bg-white">
-                    <Picker
-                      selectedValue={unidad.unidadid}
-                      onValueChange={(value) => updateUnidad(index, 'unidadid', value)}
-                      style={{ height: 55, color: '#3d2b1f' }}
-                    >
-                      {mockUnidadesMedida.map((um) => (
-                        <Picker.Item key={um.idunidad} label={`${um.nombre} (${um.abreviatura})`} value={um.idunidad} />
-                      ))}
-                    </Picker>
-                  </View>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setUnidadModalIndex(index);
+                      setShowUnidadModal(true);
+                    }}
+                    className="border-2 border-[#8B5A3C] rounded-xl px-4 py-4 bg-white flex-row justify-between items-center"
+                  >
+                    <Text className="text-base font-poppins-semibold text-[#3d2b1f]">
+                      {unidadesMedida.find(um => um.idunidad === unidad.unidadid)?.nombre || 'Seleccionar'}
+                      {unidadesMedida.find(um => um.idunidad === unidad.unidadid)?.abreviatura && 
+                        ` (${unidadesMedida.find(um => um.idunidad === unidad.unidadid)?.abreviatura})`
+                      }
+                    </Text>
+                    <Ionicons name="chevron-down" size={20} color="#8B5A3C" />
+                  </TouchableOpacity>
                 </View>
 
                 <View className="flex-1">
@@ -540,7 +589,7 @@ export default function ProductoFormScreen() {
                           </Text>
                           <View className="flex-row flex-wrap gap-2">
                             {unidades.map((unidad, uIndex) => {
-                              const unidadInfo = mockUnidadesMedida.find(u => u.idunidad === unidad.unidadid);
+                              const unidadInfo = unidadesMedida.find(u => u.idunidad === unidad.unidadid);
                               return (
                                 <View key={uIndex} className="bg-white rounded-lg p-2 border border-gray-200 min-w-[100px]">
                                   <Text className="text-xs font-poppins-semibold text-gray-600 text-center mb-1">
@@ -598,7 +647,7 @@ export default function ProductoFormScreen() {
             </View>
 
             <FlatList
-              data={mockCategorias}
+              data={categorias}
               keyExtractor={(item) => item.idcategoria.toString()}
               renderItem={({ item }) => (
                 <TouchableOpacity
@@ -639,16 +688,75 @@ export default function ProductoFormScreen() {
         </View>
       </Modal>
 
+      {/* Modal Selección de Unidad */}
+      <Modal
+        visible={showUnidadModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowUnidadModal(false)}
+      >
+        <View className="flex-1 justify-center items-center bg-black/50 px-6">
+          <View className="bg-[#F6EBD7] rounded-2xl w-full max-w-sm" style={{ maxHeight: '70%' }}>
+            <View className="bg-[#402612] rounded-t-2xl px-4 py-4">
+              <Text className="text-lg font-poppins-bold text-[#F6EBD7]">
+                Seleccionar Unidad
+              </Text>
+            </View>
+            
+            <ScrollView className="max-h-80">
+              {unidadesMedida.map((unidad) => (
+                <TouchableOpacity
+                  key={unidad.idunidad}
+                  onPress={() => {
+                    updateUnidad(unidadModalIndex, 'unidadid', unidad.idunidad);
+                    setShowUnidadModal(false);
+                  }}
+                  className="px-6 py-4 border-b border-[#E8DFD4] active:bg-[#E8DFD4]"
+                >
+                  <Text className="text-base font-poppins-semibold text-[#402612]">
+                    {unidad.nombre}
+                  </Text>
+                  <Text className="text-sm font-poppins-regular text-[#8B5A3C]">
+                    {unidad.abreviatura} • {unidad.es_peso ? 'Peso' : 'Unidad'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <View className="p-4 border-t border-[#E8DFD4]">
+              <TouchableOpacity
+                onPress={() => setShowUnidadModal(false)}
+                className="bg-[#8B5A3C] rounded-xl py-3"
+              >
+                <Text className="text-center text-white font-poppins-semibold">
+                  Cerrar
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Botón guardar */}
       <View className="p-4 bg-white" style={{ elevation: 3, borderTopWidth: 1, borderTopColor: '#E5E5E5' }}>
         <TouchableOpacity 
-          className="bg-[#402612] p-4 rounded-xl items-center" 
+          className={`p-4 rounded-xl items-center flex-row justify-center ${isSaving ? 'bg-[#8B5A3C]' : 'bg-[#402612]'}`}
           onPress={handleSave} 
           activeOpacity={0.85}
+          disabled={isSaving}
         >
-          <Text className="text-base font-poppins-bold text-white">
-            {isEditing ? 'Actualizar Producto' : 'Guardar Producto'}
-          </Text>
+          {isSaving ? (
+            <>
+              <ActivityIndicator color="#F6EBD7" size="small" />
+              <Text className="text-base font-poppins-bold text-[#F6EBD7] ml-2">
+                Guardando...
+              </Text>
+            </>
+          ) : (
+            <Text className="text-base font-poppins-bold text-white">
+              {isEditing ? 'Actualizar Producto' : 'Guardar Producto'}
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>

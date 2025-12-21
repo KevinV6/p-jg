@@ -16,12 +16,20 @@ export const CobroCard: React.FC<CobroCardProps> = ({
   onMarcarPagado,
 }) => {
   const getEstadoConfig = (estado: number) => {
-    return estado === 1
-      ? { color: '#8B5A3C', text: 'Pendiente', bgColor: '#8B5A3C15' }
-      : { color: '#5D8A66', text: 'Pagado', bgColor: '#5D8A6615' };
+    switch (estado) {
+      case 1:
+        return { color: '#8B5A3C', text: 'Pendiente', bgColor: '#8B5A3C15' };
+      case 2:
+        return { color: '#5D8A66', text: 'Pagado', bgColor: '#5D8A6615' };
+      case 0:
+        return { color: '#C45C5C', text: 'Anulado', bgColor: '#C45C5C15' };
+      default:
+        return { color: '#8B5A3C', text: 'Desconocido', bgColor: '#8B5A3C15' };
+    }
   };
 
   const estadoConfig = getEstadoConfig(cobro.estado);
+  const saldo = cobro.saldo ?? (cobro.total - cobro.monto_pagado);
 
   return (
     <TouchableOpacity
@@ -41,12 +49,12 @@ export const CobroCard: React.FC<CobroCardProps> = ({
         <View className="flex-row justify-between items-start mb-3">
           <View className="flex-1 mr-3">
             <Text className="text-base font-poppins-bold text-[#402612] mb-1" numberOfLines={1}>
-              {cobro.nombrecobro}
+              {cobro.cliente?.nombrecliente || 'Cliente'}
             </Text>
             <View className="flex-row items-center">
-              <Ionicons name="call-outline" size={14} color="#8B5A3C" />
+              <Ionicons name="receipt-outline" size={14} color="#8B5A3C" />
               <Text className="text-sm font-poppins-medium text-[#8B5A3C] ml-1">
-                {cobro.telefono}
+                {cobro.origen === 'venta' ? 'Venta a crédito' : 'Cobro manual'}
               </Text>
             </View>
           </View>
@@ -73,21 +81,23 @@ export const CobroCard: React.FC<CobroCardProps> = ({
             <Text className="text-xl font-poppins-black text-[#402612]">
               Bs {cobro.total.toFixed(2)}
             </Text>
-            <Text className="text-xs font-poppins-medium text-[#8B5A3C] mt-1">
-              {cobro.auxDetalles?.length || 0} producto(s)
-            </Text>
+            {cobro.estado === 1 && saldo > 0 && (
+              <Text className="text-xs font-poppins-medium text-[#C45C5C] mt-1">
+                Saldo: Bs {saldo.toFixed(2)}
+              </Text>
+            )}
           </View>
           
           <View className="items-end">
             <View className="flex-row items-center">
               <Ionicons name="calendar-outline" size={14} color="#8B5A3C" />
               <Text className="text-xs font-poppins-medium text-[#8B5A3C] ml-1">
-                {format(cobro.fechacreacion, 'dd MMM yyyy')}
+                {format(new Date(cobro.fecha), 'dd MMM yyyy')}
               </Text>
             </View>
             {cobro.estado === 2 && cobro.fechapago && (
               <Text className="text-xs font-poppins-medium text-[#5D8A66] mt-1">
-                Pagado: {format(cobro.fechapago, 'dd/MM/yy')}
+                Pagado: {format(new Date(cobro.fechapago), 'dd/MM/yy')}
               </Text>
             )}
           </View>

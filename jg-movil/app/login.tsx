@@ -2,11 +2,10 @@ import { GradientButton } from '@/components/shared/GradientButton';
 import { ScreenContainer } from '@/components/shared/ScreenContainer';
 import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { useRouter, Redirect } from 'expo-router';
+import React, { useState, useEffect } from 'react';
 import {
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -19,17 +18,40 @@ import {
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, isLoading: authLoading, isAuthenticated, error, clearError } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Estado para modal de error personalizado tipo Gralis
+  // Estado para modal de error personalizado
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [errorTitle, setErrorTitle] = useState('Error');
-  const [loadingMessage, setLoadingMessage] = useState('Iniciando sesión...');
+
+  // Mostrar error del contexto
+  useEffect(() => {
+    if (error) {
+      setErrorTitle('Error de autenticación');
+      setErrorMessage(error);
+      setShowErrorModal(true);
+      clearError();
+    }
+  }, [error]);
+
+  // Si ya está autenticado, redirigir a tabs
+  if (isAuthenticated && !authLoading) {
+    return <Redirect href="/(tabs)" />;
+  }
+
+  // Si está verificando la autenticación inicial, mostrar loading
+  if (authLoading && !isSubmitting) {
+    return (
+      <View className="flex-1 justify-center items-center bg-[#FFF8F0]">
+        <ActivityIndicator size="large" color="#402612" />
+      </View>
+    );
+  }
 
   const handleLogin = async () => {
     if (!username || !password) {
@@ -39,17 +61,12 @@ export default function LoginScreen() {
       return;
     }
 
-    setLoading(true);
-    setLoadingMessage('Iniciando sesión...');
-    const success = await login(username, password);
-    setLoading(false);
+    setIsSubmitting(true);
+    const success = await login({ nombreusuario: username, contrasenia: password });
+    setIsSubmitting(false);
 
     if (success) {
       router.replace('/(tabs)');
-    } else {
-      setErrorTitle('Error de autenticación');
-      setErrorMessage('Usuario o contraseña incorrectos');
-      setShowErrorModal(true);
     }
   };
 
@@ -67,9 +84,8 @@ export default function LoginScreen() {
           contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 16 }}
           keyboardShouldPersistTaps="handled"
         >
-       
 
-          {/* Header estilo Gralis */}
+          {/* Header */}
           <View className="items-center mb-8">
             <Text className="font-serif text-[40px] font-bold mb-5 text-[#3d2b1f] tracking-[2px]">
               JG
@@ -82,7 +98,7 @@ export default function LoginScreen() {
             </Text>
           </View>
 
-          {/* Form fields estilo Gralis */}
+          {/* Form fields */}
           <View className="gap-5">
             {/* Usuario field */}
             <View>
@@ -135,39 +151,14 @@ export default function LoginScreen() {
               </View>
             </View>
 
-            {/* Botón de Login estilo Gralis */}
+            {/* Botón de Login */}
             <GradientButton
               onPress={handleLogin}
-              title={loading ? "INICIANDO SESIÓN..." : "INICIAR SESIÓN"}
-              disabled={!username || !password}
-              loading={loading}
+              title={isSubmitting ? "INICIANDO SESIÓN..." : "INICIAR SESIÓN"}
+              disabled={!username || !password || isSubmitting}
+              loading={isSubmitting}
               className="mt-4"
             />
-
-            {/* Divider */}
-            <View className="flex-row items-center my-4">
-              <View className="flex-1 h-px bg-gray-300" />
-              <Text className="mx-4 text-gray-500 font-poppins-medium">
-                O
-              </Text>
-              <View className="flex-1 h-px bg-gray-300" />
-            </View>
-
-            {/* Google sign-in button */}
-            <TouchableOpacity
-              className="flex-row items-center justify-center bg-white border border-gray-200 rounded-xl py-4"
-            >
-              <View className="w-6 h-6 mr-3">
-                <Image
-                  source={{ uri: "https://developers.google.com/identity/images/g-logo.png" }}
-                  className="w-full h-full"
-                  resizeMode="contain"
-                />
-              </View>
-              <Text className="text-gray-800 font-poppins-medium text-base">
-                Continuar con Google
-              </Text>
-            </TouchableOpacity>
           </View>
 
           {/* Switch to Sign Up Link */}
@@ -181,24 +172,12 @@ export default function LoginScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-
-          {/* Credenciales de prueba */}
-          {/* <View 
-            className="mt-4 p-4 rounded-xl border-l-4 bg-white"
-            style={{ borderLeftColor: '#402612' }}
-          >
-            <Text className="text-base font-poppins-bold mb-2 text-[#402612]">
-              Credenciales de prueba:
-            </Text>
-            <Text className="text-sm font-poppins-medium text-gray-600">Usuario: admin</Text>
-            <Text className="text-sm font-poppins-medium text-gray-600">Contraseña: admin123</Text>
-          </View> */}
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Modal de Carga estilo Gralis */}
+      {/* Modal de Carga */}
       <Modal
-        visible={loading}
+        visible={isSubmitting}
         transparent={true}
         animationType="fade"
         statusBarTranslucent
@@ -213,7 +192,7 @@ export default function LoginScreen() {
           }}>
             <ActivityIndicator size="large" color="#402612" />
             <Text className="text-lg font-poppins-semibold text-[#402612] mt-4">
-              {loadingMessage}
+              Iniciando sesión...
             </Text>
             <Text className="text-sm font-poppins text-gray-600 mt-2">
               Por favor espera
