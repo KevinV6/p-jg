@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import {
+    Image,
     KeyboardAvoidingView,
     Modal,
     Platform,
@@ -90,6 +91,14 @@ export default function RegisterScreen() {
           <TouchableOpacity onPress={() => router.back()} className="mb-6">
             <Ionicons name="arrow-back" size={24} color="#402612" />
           </TouchableOpacity>
+
+          <View className="mb-6 items-center">
+            <Image
+              source={require('@/assets/images/logos/Logo carrito JG.png')}
+              style={{ width: 140, height: 140 }}
+              resizeMode="contain"
+            />
+          </View>
 
           <View className="mb-8">
             <Text className="text-4xl font-poppins-black text-[#402612] mb-2">

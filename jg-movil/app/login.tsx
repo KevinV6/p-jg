@@ -6,6 +6,7 @@ import { useRouter, Redirect } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -87,13 +88,12 @@ export default function LoginScreen() {
 
           {/* Header */}
           <View className="items-center mb-8">
-            <Text className="font-serif text-[40px] font-bold mb-5 text-[#3d2b1f] tracking-[2px]">
-              JG
-            </Text>
-            <View className="w-[90px] h-[90px] rounded-full justify-center items-center mb-4 bg-white">
-              <Ionicons name="storefront" size={50} color="#402612" />
-            </View>
-            <Text className="text-[18px] font-poppins-semibold text-[#3d2b1f] mb-2">
+            <Image
+              source={require('@/assets/images/logos/Logo carrito JG.png')}
+              style={{ width: 180, height: 180 }}
+              resizeMode="contain"
+            />
+            <Text className="text-[18px] font-poppins-semibold text-[#3d2b1f] mb-2 mt-4">
               Iniciar Sesión
             </Text>
           </View>
