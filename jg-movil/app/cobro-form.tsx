@@ -11,7 +11,6 @@ import { useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
   ScrollView,
   Text,
@@ -19,6 +18,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 export default function CobroFormScreen() {
   const router = useRouter();
@@ -237,24 +237,30 @@ export default function CobroFormScreen() {
 
   return (
     <ScreenContainer safeTop={false} statusBarStyle="light" statusBarColor="#402612">
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        className="flex-1"
-      >
-        {/* Header */}
-        <SafeHeader>
-          <View className="bg-[#402612] px-4 py-4 flex-row items-center">
-            <TouchableOpacity onPress={() => router.back()} className="mr-3">
-              <Ionicons name="arrow-back" size={24} color="#F6EBD7" />
-            </TouchableOpacity>
-            <Text className="text-xl font-poppins-semibold text-[#F6EBD7]">
-              Nuevo Cobro
-            </Text>
-          </View>
-        </SafeHeader>
+      {/* Header */}
+      <SafeHeader>
+        <View className="bg-[#402612] px-4 py-4 flex-row items-center">
+          <TouchableOpacity onPress={() => router.back()} className="mr-3">
+            <Ionicons name="arrow-back" size={24} color="#F6EBD7" />
+          </TouchableOpacity>
+          <Text className="text-xl font-poppins-semibold text-[#F6EBD7]">
+            Nuevo Cobro
+          </Text>
+        </View>
+      </SafeHeader>
 
-        <ScrollView className="flex-1 px-4 py-4" keyboardShouldPersistTaps="handled">
-          {/* Datos del Cliente - igual que nueva-venta */}
+      <KeyboardAwareScrollView
+        className="flex-1"
+        contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 16 }}
+        keyboardShouldPersistTaps="handled"
+        enableOnAndroid={true}
+        enableAutomaticScroll={true}
+        extraScrollHeight={Platform.OS === 'ios' ? 100 : 180}
+        extraHeight={Platform.OS === 'ios' ? 100 : 180}
+        enableResetScrollToCoords={false}
+        keyboardOpeningTime={0}
+      >
+        {/* Datos del Cliente - igual que nueva-venta */}
           <View className="mb-4 bg-white rounded-xl p-4 border border-[#E5E5E5]">
             <Text className="text-base font-poppins-bold text-[#402612] mb-3">
               Datos del Cliente
@@ -412,10 +418,10 @@ export default function CobroFormScreen() {
             onRemoveFromCart={handleRemoveFromCart}
             showInternalTotal={false}
           />
-        </ScrollView>
+      </KeyboardAwareScrollView>
 
-        {/* Botón Finalizar */}
-        {carrito.length > 0 && (
+      {/* Botón Finalizar */}
+      {carrito.length > 0 && (
           <View className="px-4 pb-4 pt-2 bg-[#F6EBD7] border-t border-[#E5E5E5]">
             {/* Total */}
             <View className="flex-row justify-between items-center mb-3 px-2">
@@ -452,7 +458,6 @@ export default function CobroFormScreen() {
             </TouchableOpacity>
           </View>
         )}
-      </KeyboardAvoidingView>
 
       {/* Modales */}
       <ConfirmModal 

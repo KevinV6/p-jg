@@ -10,7 +10,6 @@ import React, { useEffect, useState } from 'react';
 import {
   FlatList,
   Image,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -20,6 +19,7 @@ import {
   View,
   ActivityIndicator,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { productoService } from '@/services/productoService';
 
 interface UnidadPrecio {
@@ -563,26 +563,29 @@ export default function ProductoFormScreen() {
 
   return (
     <ScreenContainer safeTop={false} statusBarStyle="light" statusBarColor="#402612">
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-      >
-        {/* Header */}
-        <SafeHeader>
-          <View className="bg-[#402612] px-4 py-4 flex-row items-center">
-            <TouchableOpacity onPress={() => router.back()} className="mr-3">
-              <Ionicons name="arrow-back" size={24} color="#F6EBD7" />
-            </TouchableOpacity>
-            <Text className="text-xl font-poppins-semibold text-[#F6EBD7]">
-              {isEditing ? 'Editar Producto' : 'Nuevo Producto'}
-            </Text>
-          </View>
-        </SafeHeader>
+      {/* Header */}
+      <SafeHeader>
+        <View className="bg-[#402612] px-4 py-4 flex-row items-center">
+          <TouchableOpacity onPress={() => router.back()} className="mr-3">
+            <Ionicons name="arrow-back" size={24} color="#F6EBD7" />
+          </TouchableOpacity>
+          <Text className="text-xl font-poppins-semibold text-[#F6EBD7]">
+            {isEditing ? 'Editar Producto' : 'Nuevo Producto'}
+          </Text>
+        </View>
+      </SafeHeader>
 
-      <ScrollView 
-        className="flex-1 p-4" 
+      <KeyboardAwareScrollView
+        className="flex-1"
+        contentContainerStyle={{ padding: 16 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        enableOnAndroid={true}
+        enableAutomaticScroll={true}
+        extraScrollHeight={Platform.OS === 'ios' ? 100 : 180}
+        extraHeight={Platform.OS === 'ios' ? 100 : 180}
+        enableResetScrollToCoords={false}
+        keyboardOpeningTime={0}
       >
         {/* Imagen */}
         <View className="mb-6">
@@ -868,7 +871,7 @@ export default function ProductoFormScreen() {
         </View>
 
         <View style={{ height: 100 }} />
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       {/* Modal de Categoría */}
       <Modal
@@ -1026,9 +1029,8 @@ export default function ProductoFormScreen() {
           )}
         </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
 
-    {/* Modal para seleccionar imagen */}
+      {/* Modal para seleccionar imagen */}
     <Modal visible={showImageModal} transparent animationType="fade">
       <TouchableOpacity 
         className="flex-1 bg-black/50 justify-center items-center"

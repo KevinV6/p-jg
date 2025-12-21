@@ -11,15 +11,14 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  KeyboardAvoidingView,
   Modal,
   Platform,
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 export default function PerfilScreen() {
   const router = useRouter();
@@ -275,11 +274,17 @@ export default function PerfilScreen() {
         </View>
       </SafeHeader>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      <KeyboardAwareScrollView
         className="flex-1"
+        contentContainerStyle={{ padding: 16 }}
+        showsVerticalScrollIndicator={false}
+        enableOnAndroid={true}
+        enableAutomaticScroll={true}
+        extraScrollHeight={Platform.OS === 'ios' ? 100 : 180}
+        extraHeight={Platform.OS === 'ios' ? 100 : 180}
+        enableResetScrollToCoords={false}
+        keyboardOpeningTime={0}
       >
-        <ScrollView className="flex-1 px-4 py-4" showsVerticalScrollIndicator={false}>
           {/* Avatar y Info Básica */}
           <View className="items-center mb-6">
             <TouchableOpacity
@@ -526,8 +531,7 @@ export default function PerfilScreen() {
               <Text className="font-poppins-semibold text-[#402612]">#{user.idusuario}</Text>
             </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
 
       {/* Modal de Opciones de Foto */}
       <Modal

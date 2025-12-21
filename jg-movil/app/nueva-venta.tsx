@@ -8,9 +8,10 @@ import { clienteService } from '@/services/clienteService';
 import { validateDecimalInput } from '@/utils/validation';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -20,6 +21,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function NuevaVentaScreen() {
   const router = useRouter();
@@ -42,6 +45,26 @@ export default function NuevaVentaScreen() {
   const [showCreditoBlockedModal, setShowCreditoBlockedModal] = useState(false);
   const [deudaInfo, setDeudaInfo] = useState<{ total: number; cantidad: number } | null>(null);
   const [montoPago, setMontoPago] = useState('');
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const insets = useSafeAreaInsets();
+  const scrollViewRef = useRef<KeyboardAwareScrollView>(null);
+
+  // Detectar teclado visible
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
 
   // Calcular total y cambio usando useMemo
   const total = useMemo(() => {
@@ -288,24 +311,31 @@ export default function NuevaVentaScreen() {
 
   return (
     <ScreenContainer safeTop={false} statusBarStyle="light" statusBarColor="#402612">
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        className="flex-1"
-      >
-        {/* Header */}
-        <SafeHeader>
-          <View className="bg-[#402612] px-4 py-4 flex-row items-center">
-            <TouchableOpacity onPress={() => router.back()} className="mr-3">
-              <Ionicons name="arrow-back" size={24} color="#F6EBD7" />
-            </TouchableOpacity>
-            <Text className="text-xl font-poppins-semibold text-[#F6EBD7]">
-              Nueva Venta
-            </Text>
-          </View>
-        </SafeHeader>
+      {/* Header */}
+      <SafeHeader>
+        <View className="bg-[#402612] px-4 py-4 flex-row items-center">
+          <TouchableOpacity onPress={() => router.back()} className="mr-3">
+            <Ionicons name="arrow-back" size={24} color="#F6EBD7" />
+          </TouchableOpacity>
+          <Text className="text-xl font-poppins-semibold text-[#F6EBD7]">
+            Nueva Venta
+          </Text>
+        </View>
+      </SafeHeader>
 
-        <ScrollView className="flex-1 px-4 py-4" keyboardShouldPersistTaps="handled">
-          {/* Datos del Cliente */}
+      <KeyboardAwareScrollView
+        ref={scrollViewRef}
+        className="flex-1"
+        contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 16 }}
+        keyboardShouldPersistTaps="handled"
+        enableOnAndroid={true}
+        enableAutomaticScroll={true}
+        extraScrollHeight={Platform.OS === 'ios' ? 100 : 200}
+        extraHeight={Platform.OS === 'ios' ? 100 : 200}
+        enableResetScrollToCoords={false}
+        keyboardOpeningTime={0}
+      >
+        {/* Datos del Cliente */}
           <View className="mb-4 bg-white rounded-xl p-4 border border-[#E5E5E5]">
             <Text className="text-base font-poppins-bold text-[#402612] mb-3">
               Datos del Cliente
@@ -441,57 +471,69 @@ export default function NuevaVentaScreen() {
             onAddToCart={handleAddToCart}
             onRemoveFromCart={handleRemoveFromCart}
           />
-        </ScrollView>
 
-        {/* Sección de Pago y Cambio (solo visual para ventas de contado) */}
-        {carrito.length > 0 && tipoVenta === 'contado' && (
-          <View className="px-4 py-3 bg-[#F6EBD7] border-t border-[#E5E5E5]">
-            {/* Total a pagar */}
-            <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-base font-poppins-bold text-[#402612]">Total a pagar:</Text>
-              <Text className="text-xl font-poppins-black text-[#402612]">Bs. {total.toFixed(2)}</Text>
-            </View>
-            
-            {/* Input de pago */}
-            <View className="flex-row items-center gap-3">
-              <View className="flex-1">
-                <Text className="text-xs font-poppins-semibold text-[#8B5A3C] mb-1">¿Con cuánto paga?</Text>
-                <View className="flex-row items-center bg-white border border-[#8B5A3C] rounded-xl px-3">
-                  <Text className="text-[#8B5A3C] font-poppins-semibold mr-1">Bs.</Text>
-                  <TextInput
-                    value={montoPago}
-                    onChangeText={(text) => {
-                      const validated = validateDecimalInput(text, montoPago);
-                      if (validated !== null) setMontoPago(validated);
-                    }}
-                    placeholder="0.00"
-                    placeholderTextColor="#8B5A3C80"
-                    keyboardType="decimal-pad"
-                    className="flex-1 py-3 font-poppins-regular text-[#402612]"
-                  />
-                </View>
+          {/* Sección de Pago y Cambio - Ahora DENTRO del scroll */}
+          {carrito.length > 0 && tipoVenta === 'contado' && (
+            <View className="mt-4 bg-white rounded-xl p-4 border border-[#E5E5E5]">
+              {/* Total a pagar */}
+              <View className="flex-row items-center justify-between mb-3 pb-3 border-b border-[#E5E5E5]">
+                <Text className="text-base font-poppins-bold text-[#402612]">Total a pagar:</Text>
+                <Text className="text-xl font-poppins-black text-[#402612]">Bs. {total.toFixed(2)}</Text>
               </View>
               
-              <View className="flex-1">
-                <Text className="text-xs font-poppins-semibold text-[#8B5A3C] mb-1">Cambio</Text>
-                <View className={`bg-white border rounded-xl px-3 py-3 ${cambio >= 0 ? 'border-[#00D98E]' : 'border-red-400'}`}>
-                  <Text className={`font-poppins-bold text-center ${cambio >= 0 ? 'text-[#00D98E]' : 'text-red-500'}`}>
-                    Bs. {cambio >= 0 ? cambio.toFixed(2) : '0.00'}
-                  </Text>
-                  {cambio < 0 && parseFloat(montoPago) > 0 && (
-                    <Text className="text-xs text-red-400 text-center font-poppins-regular">
-                      Falta Bs. {Math.abs(cambio).toFixed(2)}
+              {/* Input de pago */}
+              <View className="flex-row items-center gap-3">
+                <View className="flex-1">
+                  <Text className="text-xs font-poppins-semibold text-[#8B5A3C] mb-1">¿Con cuánto paga?</Text>
+                  <View className="flex-row items-center bg-[#F6EBD7] border border-[#8B5A3C] rounded-xl px-3">
+                    <Text className="text-[#8B5A3C] font-poppins-semibold mr-1">Bs.</Text>
+                    <TextInput
+                      value={montoPago}
+                      onChangeText={(text) => {
+                        const validated = validateDecimalInput(text, montoPago);
+                        if (validated !== null) setMontoPago(validated);
+                      }}
+                      placeholder="0.00"
+                      placeholderTextColor="#8B5A3C80"
+                      keyboardType="decimal-pad"
+                      className="flex-1 py-3 font-poppins-regular text-[#402612]"
+                    />
+                  </View>
+                </View>
+                
+                <View className="flex-1">
+                  <Text className="text-xs font-poppins-semibold text-[#8B5A3C] mb-1">Cambio</Text>
+                  <View className={`bg-[#F6EBD7] border rounded-xl px-3 py-3 ${cambio >= 0 ? 'border-[#00D98E]' : 'border-red-400'}`}>
+                    <Text className={`font-poppins-bold text-center ${cambio >= 0 ? 'text-[#00D98E]' : 'text-red-500'}`}>
+                      Bs. {cambio >= 0 ? cambio.toFixed(2) : '0.00'}
                     </Text>
-                  )}
+                    {cambio < 0 && parseFloat(montoPago) > 0 && (
+                      <Text className="text-xs text-red-400 text-center font-poppins-regular">
+                        Falta Bs. {Math.abs(cambio).toFixed(2)}
+                      </Text>
+                    )}
+                  </View>
                 </View>
               </View>
             </View>
-          </View>
-        )}
+          )}
 
-        {/* Botón Finalizar */}
-        {carrito.length > 0 && (
-          <View className="px-4 pb-4 pt-2 bg-[#F6EBD7] border-t border-[#E5E5E5]">
+          {/* Espaciado adicional para el botón fijo */}
+          {carrito.length > 0 && (
+            <View style={{ height: 80 + insets.bottom }} />
+          )}
+      </KeyboardAwareScrollView>
+
+      {/* Botón Finalizar - Fijo abajo */}
+      {carrito.length > 0 && (
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        >
+          <View 
+            className="absolute bottom-0 left-0 right-0 px-4 pt-2 bg-[#F6EBD7] border-t border-[#E5E5E5]"
+            style={{ paddingBottom: Math.max(insets.bottom, 16) }}
+          >
             <TouchableOpacity
               onPress={handleFinalizarVenta}
               className="bg-[#402612] rounded-xl py-4 flex-row items-center justify-center"
@@ -502,8 +544,8 @@ export default function NuevaVentaScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-        )}
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      )}
 
       {/* Modales de Confirmación y Comprobante */}
       <ConfirmModal 
