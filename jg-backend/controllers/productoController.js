@@ -389,11 +389,23 @@ const create = async (req, res) => {
 
     const supabase = getAdminConnection();
 
+    // Verificar si ya existe un producto con el mismo nombre (case-insensitive)
+    const { data: existingProduct } = await supabase
+      .from('producto')
+      .select('idproducto, nombreproducto')
+      .ilike('nombreproducto', nombreproducto.trim())
+      .eq('estado', 1)
+      .single();
+
+    if (existingProduct) {
+      return errorResponse(res, `Ya existe un producto con el nombre "${existingProduct.nombreproducto}"`, 400);
+    }
+
     // Crear producto
     const { data: producto, error } = await supabase
       .from('producto')
       .insert({
-        nombreproducto,
+        nombreproducto: nombreproducto.trim(),
         descripcion,
         categoriaid: Number(categoriaid),
         imagen: imagen || '',
@@ -605,9 +617,24 @@ const update = async (req, res) => {
       return errorResponse(res, 'Producto no encontrado', 404);
     }
 
+    // Verificar si ya existe otro producto con el mismo nombre (case-insensitive)
+    if (nombreproducto !== undefined) {
+      const { data: duplicateProduct } = await supabase
+        .from('producto')
+        .select('idproducto, nombreproducto')
+        .ilike('nombreproducto', nombreproducto.trim())
+        .eq('estado', 1)
+        .neq('idproducto', id)
+        .single();
+
+      if (duplicateProduct) {
+        return errorResponse(res, `Ya existe un producto con el nombre "${duplicateProduct.nombreproducto}"`, 400);
+      }
+    }
+
     // Actualizar producto
     const updateData = {};
-    if (nombreproducto !== undefined) updateData.nombreproducto = nombreproducto;
+    if (nombreproducto !== undefined) updateData.nombreproducto = nombreproducto.trim();
     if (descripcion !== undefined) updateData.descripcion = descripcion;
     if (categoriaid !== undefined) updateData.categoriaid = Number(categoriaid);
     if (imagen !== undefined) updateData.imagen = imagen;

@@ -7,6 +7,7 @@ import { CommonActions, useNavigation } from '@react-navigation/native';
 import React from 'react';
 import {
   Alert,
+  Image,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -105,14 +106,22 @@ export default function MenuScreen() {
                 elevation: 8,
               }}
             >
-              <LinearGradient
-                colors={['#402612', '#8B5A3C']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                className="w-full h-full justify-center items-center"
-              >
-                <Ionicons name="person" size={50} color="#FFFFFF" />
-              </LinearGradient>
+              {user?.photo ? (
+                <Image
+                  source={{ uri: user.photo }}
+                  className="w-full h-full"
+                  resizeMode="cover"
+                />
+              ) : (
+                <LinearGradient
+                  colors={['#402612', '#8B5A3C']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  className="w-full h-full justify-center items-center"
+                >
+                  <Ionicons name="person" size={50} color="#FFFFFF" />
+                </LinearGradient>
+              )}
             </View>
             <Text className="text-2xl font-poppins-black text-[#402612] mb-2">
               {user?.primernombre} {user?.apellidopaterno}
@@ -140,7 +149,7 @@ export default function MenuScreen() {
         {/* Sección de Ventas */}
         <View className="px-6 mb-6">
           <Text className="text-xs font-poppins-black text-[#8B5A3C] px-2 mb-3 uppercase">
-            Ventas
+            Ventanas
           </Text>
           <MenuItem
             icon="time-outline"
@@ -149,13 +158,6 @@ export default function MenuScreen() {
             onPress={() => router.push('/historial-ventas')}
             color="#402612"
           />
-        </View>
-
-        {/* Sección de Gestión */}
-        <View className="px-6 mb-6">
-          <Text className="text-xs font-poppins-black text-[#8B5A3C] px-2 mb-3 uppercase">
-            Gestión
-          </Text>
           <MenuItem
             icon="people-outline"
             title="Clientes"
@@ -174,7 +176,7 @@ export default function MenuScreen() {
             icon="person-outline"
             title="Mi Perfil"
             subtitle="Ver y editar información personal"
-            onPress={() => Alert.alert('Perfil', 'Funcionalidad en desarrollo')}
+            onPress={() => router.push('/perfil')}
             color="#8B5A3C"
           />
           <MenuItem

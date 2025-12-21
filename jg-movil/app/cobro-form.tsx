@@ -90,12 +90,17 @@ export default function CobroFormScreen() {
 
   // Funciones del carrito
   const handleAddToCart = (item: ItemCarrito) => {
+    // Buscar si ya existe el mismo producto con la misma unidad Y la misma variante
+    // Si las variantes son diferentes (o una tiene variante y otra no), son items distintos
     const existingIndex = carrito.findIndex(
-      cartItem => cartItem.idproducto === item.idproducto && 
-                  cartItem.idproductounidad === item.idproductounidad
+      cartItem => 
+        cartItem.idproducto === item.idproducto && 
+        cartItem.idproductounidad === item.idproductounidad &&
+        cartItem.idopcionvariante === item.idopcionvariante // Verificar también la variante
     );
 
     if (existingIndex >= 0) {
+      // Si ya existe el mismo producto, misma unidad Y misma variante, sumar la cantidad
       const nuevoCarrito = [...carrito];
       nuevoCarrito[existingIndex] = {
         ...nuevoCarrito[existingIndex],
@@ -106,6 +111,7 @@ export default function CobroFormScreen() {
       };
       setCarrito(nuevoCarrito);
     } else {
+      // Si es una variante diferente o no existe, agregar como nuevo item
       setCarrito([...carrito, item]);
     }
   };
@@ -125,6 +131,13 @@ export default function CobroFormScreen() {
       showError('Error', 'Agrega productos al cobro');
       return;
     }
+    
+    // Los cobros requieren un cliente EXISTENTE seleccionado
+    if (!clienteId) {
+      showError('Cliente Requerido', 'Para registrar un cobro debes seleccionar un cliente existente. No se puede crear un nuevo cliente directamente desde aquí.');
+      return;
+    }
+    
     setShowConfirmModal(true);
   };
 
@@ -137,10 +150,18 @@ export default function CobroFormScreen() {
 
       // Si no hay cliente seleccionado pero hay nombre, crear nuevo cliente
       if (!idClienteFinal && clienteNombre.trim()) {
-        console.log('[CobroForm] Creando nuevo cliente:', { nombre: clienteNombre, ci_nit: clienteCiNit });
+        // Validar CI/NIT si fue proporcionado
+        const ciNitTrimmed = clienteCiNit.trim();
+        if (ciNitTrimmed && ciNitTrimmed.length < 8) {
+          showError('CI/NIT Inválido', 'El CI/NIT debe tener al menos 8 dígitos');
+          setProcesando(false);
+          return;
+        }
+        
+        console.log('[CobroForm] Creando nuevo cliente:', { nombre: clienteNombre, ci_nit: ciNitTrimmed });
         const nuevoCliente = await clienteService.create({
           nombre: clienteNombre.trim(),
-          ci_nit: clienteCiNit.trim() || 'S/N',
+          ci_nit: ciNitTrimmed || '', // Enviar vacío para que el backend genere uno único
           telefono: telefono.trim() || undefined,
         });
 
@@ -290,15 +311,16 @@ export default function CobroFormScreen() {
             {/* CI/NIT */}
             <View className="mb-3">
               <Text className="text-sm font-poppins-semibold text-[#8B5A3C] mb-1">
-                CI/NIT <Text className="text-xs font-poppins-regular">(opcional)</Text>
+                CI/NIT <Text className="text-xs font-poppins-regular">(opcional, mín. 8 dígitos)</Text>
               </Text>
               <TextInput
                 className="bg-[#F6EBD7] border border-[#8B5A3C] rounded-xl px-4 py-3 text-[#402612] font-poppins-regular"
-                placeholder="Ej: 12345678"
+                placeholder="Ej: 12345678 (mínimo 8)"
                 placeholderTextColor="#8B5A3C80"
                 value={clienteCiNit}
                 onChangeText={handleCiNitChange}
                 keyboardType="default"
+                maxLength={20}
               />
             </View>
 
@@ -327,12 +349,22 @@ export default function CobroFormScreen() {
               </View>
             ) : clienteNombre.trim() ? (
               <View className="mt-3 flex-row items-center">
-                <Ionicons name="person-add" size={16} color="#8B5A3C" />
-                <Text className="text-[#8B5A3C] font-poppins-regular text-sm ml-1">
-                  Se creará nuevo cliente al finalizar
+                <Ionicons name="person-add" size={16} color="#DC2626" />
+                <Text className="text-red-600 font-poppins-regular text-sm ml-1">
+                  <Text className="font-poppins-semibold">No válido:</Text> Debes seleccionar un cliente existente
                 </Text>
               </View>
             ) : null}
+            
+            {/* Aviso para cobros */}
+            {!clienteId && (
+              <View className="mt-2 bg-red-50 border border-red-200 rounded-lg p-3 flex-row items-start">
+                <Ionicons name="alert-circle" size={20} color="#DC2626" />
+                <Text className="flex-1 text-red-600 font-poppins-regular text-xs ml-2">
+                  <Text className="font-poppins-semibold">Atención:</Text> Los cobros requieren seleccionar un cliente existente de la lista.
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Info adicional del cobro */}

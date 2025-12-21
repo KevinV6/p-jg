@@ -1,5 +1,6 @@
 import { useInventario } from '@/contexts/InventarioContext';
 import { OpcionVariante, Producto, ProductoUnidad } from '@/types';
+import { validateDecimalInput, validateQuantityInput } from '@/utils/validation';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
@@ -270,9 +271,9 @@ export default function ProductSelector({
                 keyboardType="decimal-pad"
                 value={precioEditado}
                 onChangeText={(text) => {
-                  // Solo permitir números positivos y decimales
-                  if (text === '' || (/^\d*\.?\d*$/.test(text) && parseFloat(text || '0') >= 0)) {
-                    setPrecioEditado(text);
+                  const validated = validateDecimalInput(text);
+                  if (validated !== null) {
+                    setPrecioEditado(validated);
                   }
                 }}
                 placeholder="0.00"
@@ -284,12 +285,12 @@ export default function ProductSelector({
               </Text>
               <TextInput
                 className="bg-[#F6EBD7] border border-[#8B5A3C] rounded-lg px-3 py-2 text-[#402612] font-poppins-regular"
-                keyboardType="numeric"
+                keyboardType="decimal-pad"
                 value={cantidad}
                 onChangeText={(text) => {
-                  // Solo permitir números positivos
-                  if (text === '' || (/^\d*\.?\d*$/.test(text) && parseFloat(text || '0') >= 0)) {
-                    setCantidad(text);
+                  const validated = validateQuantityInput(text);
+                  if (validated !== null) {
+                    setCantidad(validated);
                   }
                 }}
               />

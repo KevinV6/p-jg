@@ -5,9 +5,10 @@ import ProductSelector, { ItemCarrito } from '@/components/venta/ProductSelector
 import { useCobros } from '@/contexts/CobrosContext';
 import { useVentas } from '@/contexts/VentasContext';
 import { clienteService } from '@/services/clienteService';
+import { validateDecimalInput } from '@/utils/validation';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -40,6 +41,17 @@ export default function NuevaVentaScreen() {
   const [procesando, setProcesando] = useState(false);
   const [showCreditoBlockedModal, setShowCreditoBlockedModal] = useState(false);
   const [deudaInfo, setDeudaInfo] = useState<{ total: number; cantidad: number } | null>(null);
+  const [montoPago, setMontoPago] = useState('');
+
+  // Calcular total y cambio usando useMemo
+  const total = useMemo(() => {
+    return carrito.reduce((sum, item) => sum + item.subtotal, 0);
+  }, [carrito]);
+
+  const cambio = useMemo(() => {
+    const pago = parseFloat(montoPago) || 0;
+    return pago - total;
+  }, [montoPago, total]);
 
   useEffect(() => {
     loadClientes();
@@ -84,14 +96,17 @@ export default function NuevaVentaScreen() {
   };
 
   const handleAddToCart = (item: ItemCarrito) => {
-    // Buscar si ya existe el mismo producto con la misma unidad
+    // Buscar si ya existe el mismo producto con la misma unidad Y la misma variante
+    // Si las variantes son diferentes (o una tiene variante y otra no), son items distintos
     const existingIndex = carrito.findIndex(
-      cartItem => cartItem.idproducto === item.idproducto && 
-                  cartItem.idproductounidad === item.idproductounidad
+      cartItem => 
+        cartItem.idproducto === item.idproducto && 
+        cartItem.idproductounidad === item.idproductounidad &&
+        cartItem.idopcionvariante === item.idopcionvariante // Verificar también la variante
     );
 
     if (existingIndex >= 0) {
-      // Si ya existe, sumar la cantidad y recalcular subtotal
+      // Si ya existe el mismo producto, misma unidad Y misma variante, sumar la cantidad
       const nuevoCarrito = [...carrito];
       nuevoCarrito[existingIndex] = {
         ...nuevoCarrito[existingIndex],
@@ -102,6 +117,7 @@ export default function NuevaVentaScreen() {
       };
       setCarrito(nuevoCarrito);
     } else {
+      // Si es una variante diferente o no existe, agregar como nuevo item
       setCarrito([...carrito, item]);
     }
   };
@@ -112,9 +128,8 @@ export default function NuevaVentaScreen() {
     setCarrito(nuevoCarrito);
   };
 
-  const calcularTotal = () => {
-    return carrito.reduce((sum, item) => sum + item.subtotal, 0);
-  };
+  // Mantener compatibilidad con código existente
+  const calcularTotal = () => total;
 
   // Función para verificar si el cliente tiene cobros pendientes
   const verificarCobrosPendientes = (idCliente: number): { tiene: boolean; total: number; cantidad: number } => {
@@ -132,6 +147,12 @@ export default function NuevaVentaScreen() {
   const handleFinalizarVenta = async () => {
     if (carrito.length === 0) {
       showError('Error', 'Agrega productos al carrito');
+      return;
+    }
+
+    // Si es venta a crédito, validar que haya un cliente EXISTENTE seleccionado
+    if (tipoVenta === 'credito' && !clienteId) {
+      showError('Venta a Crédito', 'Para ventas a crédito debes seleccionar un cliente existente. No se puede crear un nuevo cliente para crédito.');
       return;
     }
 
@@ -158,10 +179,18 @@ export default function NuevaVentaScreen() {
 
       // Si no hay cliente seleccionado pero hay nombre, crear nuevo cliente
       if (!idClienteFinal && clienteNombre.trim()) {
-        console.log('[NuevaVenta] Creando nuevo cliente:', { nombre: clienteNombre, ci_nit: clienteCiNit });
+        // Validar CI/NIT si fue proporcionado
+        const ciNitTrimmed = clienteCiNit.trim();
+        if (ciNitTrimmed && ciNitTrimmed.length < 8) {
+          showError('CI/NIT Inválido', 'El CI/NIT debe tener al menos 8 dígitos');
+          setProcesando(false);
+          return;
+        }
+        
+        console.log('[NuevaVenta] Creando nuevo cliente:', { nombre: clienteNombre, ci_nit: ciNitTrimmed });
         const nuevoCliente = await clienteService.create({
           nombre: clienteNombre.trim(),
-          ci_nit: clienteCiNit.trim() || 'S/N',
+          ci_nit: ciNitTrimmed || '', // Enviar vacío para que el backend genere uno único
         });
 
         console.log('[NuevaVenta] Respuesta crear cliente:', nuevoCliente);
@@ -336,15 +365,16 @@ export default function NuevaVentaScreen() {
             {/* CI/NIT */}
             <View>
               <Text className="text-sm font-poppins-semibold text-[#8B5A3C] mb-1">
-                CI/NIT <Text className="text-xs font-poppins-regular">(opcional)</Text>
+                CI/NIT <Text className="text-xs font-poppins-regular">(opcional, mín. 8 dígitos)</Text>
               </Text>
               <TextInput
                 className="bg-[#F6EBD7] border border-[#8B5A3C] rounded-xl px-4 py-3 text-[#402612] font-poppins-regular"
-                placeholder="Ej: 12345678"
+                placeholder="Ej: 12345678 (mínimo 8)"
                 placeholderTextColor="#8B5A3C80"
                 value={clienteCiNit}
                 onChangeText={handleCiNitChange}
                 keyboardType="default"
+                maxLength={20}
               />
             </View>
 
@@ -361,6 +391,9 @@ export default function NuevaVentaScreen() {
                 <Ionicons name="person-add" size={16} color="#8B5A3C" />
                 <Text className="text-[#8B5A3C] font-poppins-regular text-sm ml-1">
                   Se creará nuevo cliente al finalizar
+                  {tipoVenta === 'credito' && (
+                    <Text className="text-red-600 font-poppins-semibold"> (NO válido para crédito)</Text>
+                  )}
                 </Text>
               </View>
             ) : (
@@ -368,6 +401,19 @@ export default function NuevaVentaScreen() {
                 <Ionicons name="information-circle" size={16} color="#8B5A3C" />
                 <Text className="text-[#8B5A3C] font-poppins-regular text-sm ml-1">
                   Sin cliente = "Cliente General"
+                  {tipoVenta === 'credito' && (
+                    <Text className="text-red-600 font-poppins-semibold"> (NO válido para crédito)</Text>
+                  )}
+                </Text>
+              </View>
+            )}
+            
+            {/* Aviso para crédito */}
+            {tipoVenta === 'credito' && !clienteId && (
+              <View className="mt-2 bg-red-50 border border-red-200 rounded-lg p-3 flex-row items-start">
+                <Ionicons name="alert-circle" size={20} color="#DC2626" />
+                <Text className="flex-1 text-red-600 font-poppins-regular text-xs ml-2">
+                  <Text className="font-poppins-semibold">Atención:</Text> Las ventas a crédito requieren seleccionar un cliente existente de la lista.
                 </Text>
               </View>
             )}
@@ -396,6 +442,52 @@ export default function NuevaVentaScreen() {
             onRemoveFromCart={handleRemoveFromCart}
           />
         </ScrollView>
+
+        {/* Sección de Pago y Cambio (solo visual para ventas de contado) */}
+        {carrito.length > 0 && tipoVenta === 'contado' && (
+          <View className="px-4 py-3 bg-[#F6EBD7] border-t border-[#E5E5E5]">
+            {/* Total a pagar */}
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-base font-poppins-bold text-[#402612]">Total a pagar:</Text>
+              <Text className="text-xl font-poppins-black text-[#402612]">Bs. {total.toFixed(2)}</Text>
+            </View>
+            
+            {/* Input de pago */}
+            <View className="flex-row items-center gap-3">
+              <View className="flex-1">
+                <Text className="text-xs font-poppins-semibold text-[#8B5A3C] mb-1">¿Con cuánto paga?</Text>
+                <View className="flex-row items-center bg-white border border-[#8B5A3C] rounded-xl px-3">
+                  <Text className="text-[#8B5A3C] font-poppins-semibold mr-1">Bs.</Text>
+                  <TextInput
+                    value={montoPago}
+                    onChangeText={(text) => {
+                      const validated = validateDecimalInput(text, montoPago);
+                      if (validated !== null) setMontoPago(validated);
+                    }}
+                    placeholder="0.00"
+                    placeholderTextColor="#8B5A3C80"
+                    keyboardType="decimal-pad"
+                    className="flex-1 py-3 font-poppins-regular text-[#402612]"
+                  />
+                </View>
+              </View>
+              
+              <View className="flex-1">
+                <Text className="text-xs font-poppins-semibold text-[#8B5A3C] mb-1">Cambio</Text>
+                <View className={`bg-white border rounded-xl px-3 py-3 ${cambio >= 0 ? 'border-[#00D98E]' : 'border-red-400'}`}>
+                  <Text className={`font-poppins-bold text-center ${cambio >= 0 ? 'text-[#00D98E]' : 'text-red-500'}`}>
+                    Bs. {cambio >= 0 ? cambio.toFixed(2) : '0.00'}
+                  </Text>
+                  {cambio < 0 && parseFloat(montoPago) > 0 && (
+                    <Text className="text-xs text-red-400 text-center font-poppins-regular">
+                      Falta Bs. {Math.abs(cambio).toFixed(2)}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* Botón Finalizar */}
         {carrito.length > 0 && (

@@ -78,33 +78,62 @@ const getGenerico = async (req, res) => {
   try {
     const supabase = getAdminConnection();
 
+    // Primero buscar cliente genérico existente
     const { data, error } = await supabase
       .from('cliente')
       .select('*')
       .eq('es_generico', true)
+      .eq('estado', 1)
       .single();
 
-    if (error || !data) {
-      // Si no existe, crearlo
-      const { data: newGenerico, error: createError } = await supabase
+    if (data) {
+      return successResponse(res, data);
+    }
+
+    // Si no existe cliente genérico, intentar crearlo
+    // Primero verificar si existe un cliente con CI/NIT 'S/N' que no sea genérico
+    const { data: clienteConSN } = await supabase
+      .from('cliente')
+      .select('*')
+      .eq('ci_nit', 'S/N')
+      .eq('estado', 1)
+      .single();
+
+    if (clienteConSN) {
+      // Si existe un cliente con S/N, marcarlo como genérico
+      const { data: updated, error: updateError } = await supabase
         .from('cliente')
-        .insert({
-          nombrecliente: 'Cliente General',
-          ci_nit: 'S/N',
-          es_generico: true,
-          estado: 1
-        })
+        .update({ es_generico: true, nombrecliente: 'Cliente General' })
+        .eq('idcliente', clienteConSN.idcliente)
         .select()
         .single();
 
-      if (createError) {
+      if (updateError) {
+        console.error('Error actualizando cliente genérico:', updateError);
         return errorResponse(res, 'Error al obtener cliente genérico', 500);
       }
 
-      return successResponse(res, newGenerico);
+      return successResponse(res, updated);
     }
 
-    return successResponse(res, data);
+    // Si no existe ningún cliente con S/N, crearlo
+    const { data: newGenerico, error: createError } = await supabase
+      .from('cliente')
+      .insert({
+        nombrecliente: 'Cliente General',
+        ci_nit: 'S/N',
+        es_generico: true,
+        estado: 1
+      })
+      .select()
+      .single();
+
+    if (createError) {
+      console.error('Error creando cliente genérico:', createError);
+      return errorResponse(res, 'Error al obtener cliente genérico', 500);
+    }
+
+    return successResponse(res, newGenerico);
 
   } catch (error) {
     console.error('Get generic client error:', error);
@@ -184,18 +213,32 @@ const create = async (req, res) => {
 
     const supabase = getAdminConnection();
 
-    // Verificar si CI/NIT ya existe (solo si no es S/N)
-    if (ci_nit && ci_nit !== 'S/N') {
-      const { data: existingClient } = await supabase
-        .from('cliente')
-        .select('idcliente, nombrecliente')
-        .eq('ci_nit', ci_nit)
-        .eq('estado', 1)
-        .single();
+    // Determinar el CI/NIT a usar
+    let ciNitFinal = ci_nit ? ci_nit.trim() : '';
 
-      if (existingClient) {
-        return errorResponse(res, `Ya existe un cliente con ese CI/NIT: ${existingClient.nombrecliente}`, 400);
-      }
+    // Validar longitud mínima si se proporciona CI/NIT
+    if (ciNitFinal && ciNitFinal !== 'S/N' && ciNitFinal.length < 8) {
+      return errorResponse(res, 'El CI/NIT debe tener al menos 8 dígitos', 400);
+    }
+
+    // Si el CI/NIT está vacío o es 'S/N', generar uno único
+    if (!ciNitFinal || ciNitFinal === 'S/N' || ciNitFinal === '') {
+      // Generar un CI/NIT único basado en timestamp y random
+      const timestamp = Date.now();
+      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      ciNitFinal = `SN-${timestamp}-${random}`;
+    }
+
+    // Verificar si CI/NIT ya existe
+    const { data: existingClient } = await supabase
+      .from('cliente')
+      .select('idcliente, nombrecliente')
+      .eq('ci_nit', ciNitFinal)
+      .eq('estado', 1)
+      .single();
+
+    if (existingClient) {
+      return errorResponse(res, `Ya existe un cliente con ese CI/NIT: ${existingClient.nombrecliente}`, 400);
     }
 
     // Crear cliente
@@ -203,7 +246,7 @@ const create = async (req, res) => {
       .from('cliente')
       .insert({
         nombrecliente: clienteNombre.trim(),
-        ci_nit: ci_nit || 'S/N',
+        ci_nit: ciNitFinal,
         telefono,
         direccion,
         email,
@@ -216,6 +259,10 @@ const create = async (req, res) => {
 
     if (error) {
       console.error('Error creando cliente:', error);
+      // Si es error de duplicado, dar mensaje más claro
+      if (error.code === '23505') {
+        return errorResponse(res, 'Error: CI/NIT duplicado. Intente nuevamente.', 400);
+      }
       return errorResponse(res, 'Error al crear cliente', 500);
     }
 
@@ -252,18 +299,26 @@ const update = async (req, res) => {
       return errorResponse(res, 'No se puede modificar el cliente genérico', 400);
     }
 
-    // Si se actualiza CI/NIT, verificar que no exista
-    if (ci_nit && ci_nit !== existingClient.ci_nit && ci_nit !== 'S/N') {
-      const { data: duplicateCi } = await supabase
-        .from('cliente')
-        .select('idcliente')
-        .eq('ci_nit', ci_nit)
-        .eq('estado', 1)
-        .neq('idcliente', id)
-        .single();
+    // Si se actualiza CI/NIT, validar longitud y verificar que no exista
+    if (ci_nit && ci_nit !== existingClient.ci_nit) {
+      // Validar longitud mínima
+      if (ci_nit !== 'S/N' && ci_nit.length < 8) {
+        return errorResponse(res, 'El CI/NIT debe tener al menos 8 dígitos', 400);
+      }
+      
+      // Verificar duplicados
+      if (ci_nit !== 'S/N') {
+        const { data: duplicateCi } = await supabase
+          .from('cliente')
+          .select('idcliente')
+          .eq('ci_nit', ci_nit)
+          .eq('estado', 1)
+          .neq('idcliente', id)
+          .single();
 
-      if (duplicateCi) {
-        return errorResponse(res, 'Ya existe un cliente con ese CI/NIT', 400);
+        if (duplicateCi) {
+          return errorResponse(res, 'Ya existe un cliente con ese CI/NIT', 400);
+        }
       }
     }
 

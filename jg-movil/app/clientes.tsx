@@ -115,13 +115,27 @@ export default function ClientesScreen() {
       return;
     }
 
+    // Validar CI/NIT si se proporciona
+    const ciNitTrimmed = formData.ci_nit.trim();
+    if (ciNitTrimmed && ciNitTrimmed.length < 8) {
+      showError('CI/NIT Inválido', 'El CI/NIT debe tener al menos 8 dígitos');
+      return;
+    }
+
+    // Validar teléfono si se proporciona (mínimo 8 dígitos)
+    const telefonoTrimmed = formData.telefono.trim().replace(/\D/g, ''); // Solo números
+    if (formData.telefono.trim() && telefonoTrimmed.length < 8) {
+      showError('Teléfono Inválido', 'El teléfono debe tener al menos 8 dígitos');
+      return;
+    }
+
     setSaving(true);
     try {
       if (editingCliente) {
         // Actualizar cliente existente
         const response = await clienteService.update(editingCliente.idcliente, {
           nombre: formData.nombrecliente,
-          ci_nit: formData.ci_nit || undefined,
+          ci_nit: ciNitTrimmed || undefined,
           telefono: formData.telefono || undefined,
           direccion: formData.direccion || undefined,
           email: formData.email || undefined,
@@ -140,7 +154,7 @@ export default function ClientesScreen() {
         // Crear nuevo cliente
         const response = await clienteService.create({
           nombre: formData.nombrecliente,
-          ci_nit: formData.ci_nit || 'S/N',
+          ci_nit: ciNitTrimmed || '', // Enviar vacío para que el backend genere uno único
           telefono: formData.telefono || undefined,
           direccion: formData.direccion || undefined,
           email: formData.email || undefined,
@@ -347,29 +361,31 @@ export default function ClientesScreen() {
                 {/* CI/NIT */}
                 <View className="mb-4">
                   <Text className="text-sm font-poppins-semibold text-[#402612] mb-2">
-                    CI/NIT
+                    CI/NIT <Text className="text-xs font-poppins-regular">(opcional, mín. 8 dígitos)</Text>
                   </Text>
                   <TextInput
                     className="bg-white border border-[#8B5A3C] rounded-xl px-4 py-3 text-[#402612] font-poppins-regular"
-                    placeholder="Número de CI o NIT"
+                    placeholder="Ej: 12345678 (mínimo 8)"
                     placeholderTextColor="#8B5A3C80"
                     value={formData.ci_nit}
                     onChangeText={(text) => setFormData({ ...formData, ci_nit: text })}
+                    maxLength={20}
                   />
                 </View>
 
                 {/* Teléfono */}
                 <View className="mb-4">
                   <Text className="text-sm font-poppins-semibold text-[#402612] mb-2">
-                    Teléfono
+                    Teléfono <Text className="text-xs font-poppins-regular">(opcional, mín. 8 dígitos)</Text>
                   </Text>
                   <TextInput
                     className="bg-white border border-[#8B5A3C] rounded-xl px-4 py-3 text-[#402612] font-poppins-regular"
-                    placeholder="Número de teléfono"
+                    placeholder="Ej: 77712345 (mínimo 8)"
                     placeholderTextColor="#8B5A3C80"
                     value={formData.telefono}
                     onChangeText={(text) => setFormData({ ...formData, telefono: text })}
                     keyboardType="phone-pad"
+                    maxLength={15}
                   />
                 </View>
 

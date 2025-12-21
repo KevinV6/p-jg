@@ -144,8 +144,6 @@ export const ComprobanteModal: React.FC<ComprobanteModalProps> = ({
           </table>
 
           <div class="totales">
-            <div>Subtotal: Bs. ${data.total.toFixed(2)}</div>
-            <div>Descuentos: Bs. 0.00</div>
             <div class="total-final">TOTAL: Bs. ${data.total.toFixed(2)}</div>
           </div>
 
@@ -322,17 +320,8 @@ export const ComprobanteModal: React.FC<ComprobanteModalProps> = ({
               )}
             </View>
 
-            {/* Totales */}
+            {/* Total */}
             <View className="pt-3 border-t border-gray-200">
-              <View className="flex-row justify-between items-center mb-1">
-                <Text className="text-sm font-poppins-regular text-[#8B5A3C]">Subtotal:</Text>
-                <Text className="text-sm font-poppins-regular text-[#402612]">Bs. {data.total.toFixed(2)}</Text>
-              </View>
-              <View className="flex-row justify-between items-center mb-2">
-                <Text className="text-sm font-poppins-regular text-[#8B5A3C]">Descuentos:</Text>
-                <Text className="text-sm font-poppins-regular text-[#402612]">Bs. 0.00</Text>
-              </View>
-              <View className="h-px bg-[#402612] my-2" />
               <View className="flex-row justify-between items-center">
                 <Text className="text-lg font-poppins-black text-[#402612]">TOTAL:</Text>
                 <Text className="text-xl font-poppins-black text-[#402612]">Bs. {data.total.toFixed(2)}</Text>

@@ -60,7 +60,7 @@ class AuthService {
   }
 
   async updateAvatar(file: any) {
-    return api.uploadFile<Usuario>('/auth/profile/avatar', file);
+    return api.uploadFile<Usuario>('/auth/profile/avatar', file, 'file');
   }
 
   async changePassword(currentPassword: string, newPassword: string) {

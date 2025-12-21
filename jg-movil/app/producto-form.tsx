@@ -1,6 +1,7 @@
 import { SafeHeader, ScreenContainer } from '@/components/shared/ScreenContainer';
 import { useCustomAlert } from '@/components/shared/CustomAlert';
 import { useInventario } from '@/contexts/InventarioContext';
+import { validateDecimalInput } from '@/utils/validation';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
@@ -199,7 +200,16 @@ export default function ProductoFormScreen() {
   };
 
   const addUnidad = () => {
-    setUnidades([...unidades, { unidadid: 1, precio: '' }]);
+    // Encontrar la primera unidad de medida no utilizada
+    const unidadesUsadas = unidades.map(u => u.unidadid);
+    const unidadDisponible = unidadesMedida.find(um => !unidadesUsadas.includes(um.idunidad));
+    
+    if (unidadDisponible) {
+      setUnidades([...unidades, { unidadid: unidadDisponible.idunidad, precio: '' }]);
+    } else if (unidadesMedida.length > 0) {
+      // Si todas están usadas, mostrar advertencia
+      showWarning('Aviso', 'Ya has agregado todas las unidades de medida disponibles');
+    }
   };
 
   const removeUnidad = (index: number) => {
@@ -225,7 +235,11 @@ export default function ProductoFormScreen() {
     if (field === 'unidadid') {
       newUnidades[index][field] = value as number;
     } else {
-      newUnidades[index][field] = value as string;
+      // Validar precio con la nueva función
+      const validated = validateDecimalInput(value as string);
+      if (validated !== null) {
+        newUnidades[index][field] = validated;
+      }
     }
     setUnidades(newUnidades);
   };
@@ -265,6 +279,10 @@ export default function ProductoFormScreen() {
   };
 
   const updateOpcionVariantePrecio = (varianteIndex: number, opcionIndex: number, unidadid: number, precio: string) => {
+    // Validar precio
+    const validated = validateDecimalInput(precio);
+    if (validated === null) return;
+    
     const newVariantes = [...variantes];
     const opcion = newVariantes[varianteIndex].opciones[opcionIndex];
     
@@ -274,9 +292,9 @@ export default function ProductoFormScreen() {
     
     const precioIndex = opcion.precios.findIndex(p => p.unidadid === unidadid);
     if (precioIndex >= 0) {
-      opcion.precios[precioIndex].precio = precio;
+      opcion.precios[precioIndex].precio = validated;
     } else {
-      opcion.precios.push({ unidadid, precio });
+      opcion.precios.push({ unidadid, precio: validated });
     }
     
     setVariantes(newVariantes);
@@ -389,6 +407,17 @@ export default function ProductoFormScreen() {
 
     if (unidades.some(u => !u.precio || parseFloat(u.precio) <= 0)) {
       showError('Error', 'Todos los precios deben ser mayores a 0');
+      return;
+    }
+
+    // Validar que no haya unidades de medida duplicadas
+    const unidadesIds = unidades.map(u => u.unidadid);
+    const unidadesDuplicadas = unidadesIds.filter((id, index) => unidadesIds.indexOf(id) !== index);
+    if (unidadesDuplicadas.length > 0) {
+      const nombresDuplicados = unidadesDuplicadas.map(id => 
+        unidadesMedida.find(um => um.idunidad === id)?.nombre || 'Desconocida'
+      );
+      showError('Error', `Tienes unidades de medida duplicadas: ${[...new Set(nombresDuplicados)].join(', ')}`);
       return;
     }
 
@@ -917,23 +946,48 @@ export default function ProductoFormScreen() {
             </View>
             
             <ScrollView className="max-h-80">
-              {unidadesMedida.map((unidad) => (
-                <TouchableOpacity
-                  key={unidad.idunidad}
-                  onPress={() => {
-                    updateUnidad(unidadModalIndex, 'unidadid', unidad.idunidad);
-                    setShowUnidadModal(false);
-                  }}
-                  className="px-6 py-4 border-b border-[#E8DFD4] active:bg-[#E8DFD4]"
-                >
-                  <Text className="text-base font-poppins-semibold text-[#402612]">
-                    {unidad.nombre}
-                  </Text>
-                  <Text className="text-sm font-poppins-regular text-[#8B5A3C]">
-                    {unidad.abreviatura} • {unidad.es_peso ? 'Peso' : 'Unidad'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {unidadesMedida.map((unidad) => {
+                // Verificar si esta unidad ya está seleccionada en otra posición
+                const yaSeleccionada = unidades.some(
+                  (u, idx) => u.unidadid === unidad.idunidad && idx !== unidadModalIndex
+                );
+                
+                return (
+                  <TouchableOpacity
+                    key={unidad.idunidad}
+                    onPress={() => {
+                      if (!yaSeleccionada) {
+                        updateUnidad(unidadModalIndex, 'unidadid', unidad.idunidad);
+                        setShowUnidadModal(false);
+                      }
+                    }}
+                    disabled={yaSeleccionada}
+                    className={`px-6 py-4 border-b border-[#E8DFD4] ${
+                      yaSeleccionada ? 'opacity-40 bg-gray-100' : 'active:bg-[#E8DFD4]'
+                    }`}
+                  >
+                    <View className="flex-row justify-between items-center">
+                      <View className="flex-1">
+                        <Text className={`text-base font-poppins-semibold ${
+                          yaSeleccionada ? 'text-gray-400' : 'text-[#402612]'
+                        }`}>
+                          {unidad.nombre}
+                        </Text>
+                        <Text className={`text-sm font-poppins-regular ${
+                          yaSeleccionada ? 'text-gray-400' : 'text-[#8B5A3C]'
+                        }`}>
+                          {unidad.abreviatura} • {unidad.es_peso ? 'Peso' : 'Unidad'}
+                        </Text>
+                      </View>
+                      {yaSeleccionada && (
+                        <View className="bg-gray-300 rounded-full px-2 py-1">
+                          <Text className="text-xs text-gray-600 font-poppins-semibold">Ya usada</Text>
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
 
             <View className="p-4 border-t border-[#E8DFD4]">
