@@ -10,20 +10,81 @@ import { AppHeader } from '@/components/shared/AppHeader';
 import { ScreenContainer } from '@/components/shared/ScreenContainer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCobros } from '@/contexts/CobrosContext';
-import { usePedidos } from '@/contexts/PedidosContext';
 import { useVentas } from '@/contexts/VentasContext';
-import { Venta } from '@/types';
+import { Venta, Pedido } from '@/types';
 import { useRouter } from 'expo-router';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, View } from 'react-native';
+
+// Datos mock de pedidos para mostrar en la UI (sin conexión a BD)
+const mockPedidosPreview: Pedido[] = [
+  {
+    idpedido: 1,
+    fecha: new Date().toISOString(),
+    estado_pedido: 'pendiente',
+    estado: 1,
+    clienteid: 1,
+    usuarioid: 1,
+    total: 42.50,
+    cliente: { 
+      idcliente: 1, 
+      nombrecliente: 'Juan Pérez', 
+      ci_nit: '12345678', 
+      estado: 1 
+    },
+    notas: 'Entregar antes de las 5pm',
+    fechaactualizacion: new Date().toISOString(),
+    detalles: [
+      { 
+        iddetallepedido: 1, 
+        pedidoid: 1, 
+        productoid: 1, 
+        cantidad: 5,
+        precio: 8.50,
+        subtotal: 42.50,
+        producto: { idproducto: 1, nombreproducto: 'Manzana Roja', imagen: '', categoriaid: 1, estado: 1 }
+      }
+    ],
+  },
+  {
+    idpedido: 2,
+    fecha: new Date().toISOString(),
+    estado_pedido: 'pendiente',
+    estado: 1,
+    clienteid: 2,
+    usuarioid: 1,
+    total: 10.50,
+    cliente: { 
+      idcliente: 2, 
+      nombrecliente: 'María López', 
+      ci_nit: '87654321', 
+      estado: 1 
+    },
+    notas: 'Cliente regular',
+    fechaactualizacion: new Date().toISOString(),
+    detalles: [
+      { 
+        iddetallepedido: 2, 
+        pedidoid: 2, 
+        productoid: 2, 
+        cantidad: 3,
+        precio: 3.50,
+        subtotal: 10.50,
+        producto: { idproducto: 2, nombreproducto: 'Tomate', imagen: '', categoriaid: 2, estado: 1 }
+      }
+    ],
+  },
+];
 
 export default function HomeScreen() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
   const { getVentasRecientes, getTotalVentas } = useVentas();
-  const { getPedidosPendientes } = usePedidos();
   const { getCobrosPendientes } = useCobros();
-  const [refreshing, setRefreshing] = React.useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Usar datos mock para pedidos (solo visual, sin BD)
+  const [pedidosPendientes] = useState<Pedido[]>(mockPedidosPreview);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -32,7 +93,6 @@ export default function HomeScreen() {
   }, [isAuthenticated]);
 
   const ventasRecientes = getVentasRecientes(5);
-  const pedidosPendientes = getPedidosPendientes();
   const cobrosPendientes = getCobrosPendientes();
   const totalVentas = getTotalVentas();
 
@@ -42,7 +102,7 @@ export default function HomeScreen() {
   }, []);
 
   return (
-    <ScreenContainer safeTop={false}>
+    <ScreenContainer safeTop={false} hasTabBar={true}>
       <AppHeader title="Inicio" onNotificationPress={() => {}} />
 
       <ScrollView
@@ -114,7 +174,7 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Pedidos Pendientes */}
+        {/* Pedidos Pendientes (Mock - Solo visual) */}
         <View className="mt-6 px-4">
           <SectionHeader
             title="Pedidos Pendientes"

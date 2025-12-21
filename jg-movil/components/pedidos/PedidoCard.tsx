@@ -10,20 +10,26 @@ interface PedidoCardProps {
 }
 
 export const PedidoCard: React.FC<PedidoCardProps> = ({ pedido, onPress }) => {
-  const getEstadoConfig = (estado: number) => {
+  const getEstadoConfig = (estado: string) => {
     switch (estado) {
-      case 1:
+      case 'pendiente':
         return { color: '#8B5A3C', text: 'Pendiente', bgColor: '#8B5A3C15', icon: 'time-outline' };
-      case 2:
+      case 'confirmado':
         return { color: '#5D8A66', text: 'Confirmado', bgColor: '#5D8A6615', icon: 'checkmark-circle-outline' };
-      case 3:
+      case 'preparando':
+        return { color: '#F59E0B', text: 'Preparando', bgColor: '#F59E0B15', icon: 'construct-outline' };
+      case 'listo':
+        return { color: '#3B82F6', text: 'Listo', bgColor: '#3B82F615', icon: 'checkmark-done-outline' };
+      case 'entregado':
+        return { color: '#10B981', text: 'Entregado', bgColor: '#10B98115', icon: 'checkmark-done-circle-outline' };
+      case 'cancelado':
         return { color: '#C45C5C', text: 'Cancelado', bgColor: '#C45C5C15', icon: 'close-circle-outline' };
       default:
         return { color: '#8B5A3C', text: 'Desconocido', bgColor: '#8B5A3C15', icon: 'help-outline' };
     }
   };
 
-  const estadoConfig = getEstadoConfig(pedido.estado);
+  const estadoConfig = getEstadoConfig(pedido.estado_pedido);
   const totalProductos = pedido.detalles?.length || 0;
 
   return (
@@ -71,15 +77,15 @@ export const PedidoCard: React.FC<PedidoCardProps> = ({ pedido, onPress }) => {
             <Ionicons name="person-outline" size={16} color="#402612" />
           </View>
           <Text className="text-base font-poppins-semibold text-[#402612] flex-1" numberOfLines={1}>
-            {pedido.cliente?.cliente || 'Cliente'}
+            {pedido.cliente?.nombrecliente || 'Cliente'}
           </Text>
         </View>
 
-        {/* Observación */}
-        {pedido.observacion && (
+        {/* Notas */}
+        {pedido.notas && (
           <View className="bg-[#F6EBD7] rounded-xl p-3 mb-3">
             <Text className="text-sm font-poppins-medium text-[#8B5A3C] italic" numberOfLines={2}>
-              "{pedido.observacion}"
+              "{pedido.notas}"
             </Text>
           </View>
         )}
@@ -89,7 +95,7 @@ export const PedidoCard: React.FC<PedidoCardProps> = ({ pedido, onPress }) => {
           <View className="flex-row items-center">
             <Ionicons name="calendar-outline" size={14} color="#8B5A3C" />
             <Text className="text-xs font-poppins-medium text-[#8B5A3C] ml-1">
-              {format(pedido.fechapedido, 'dd MMM yyyy, HH:mm')}
+              {format(new Date(pedido.fecha), 'dd MMM yyyy, HH:mm')}
             </Text>
           </View>
 

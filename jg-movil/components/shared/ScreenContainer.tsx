@@ -1,6 +1,7 @@
 import React from 'react';
 import { Platform, StatusBar, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigationType } from '@/hooks/use-navigation-type';
 
 interface ScreenContainerProps {
   children: React.ReactNode;
@@ -18,6 +19,8 @@ interface ScreenContainerProps {
   className?: string;
   /** Si tiene un header oscuro que necesita padding superior separado */
   hasDarkHeader?: boolean;
+  /** Si está dentro de un Tab Layout (ajusta el padding inferior para el tab bar) */
+  hasTabBar?: boolean;
 }
 
 /**
@@ -33,11 +36,23 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
   statusBarStyle = 'dark',
   className = '',
   hasDarkHeader = false,
+  hasTabBar = false,
 }) => {
   const insets = useSafeAreaInsets();
+  const { tabBarPaddingBottom } = useNavigationType();
 
   // Si tiene header oscuro, aplicamos el padding top al header, no al contenedor
   const paddingTop = safeTop && !hasDarkHeader ? insets.top : 0;
+  
+  // Calcular padding inferior
+  let paddingBottom = 0;
+  if (hasTabBar) {
+    // Si tiene tab bar, usar la altura del tab bar + su padding
+    paddingBottom = 65 + tabBarPaddingBottom;
+  } else if (safeBottom) {
+    // Si no tiene tab bar pero necesita zona segura
+    paddingBottom = insets.bottom;
+  }
 
   return (
     <View
@@ -45,7 +60,7 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
       style={{
         backgroundColor,
         paddingTop,
-        paddingBottom: safeBottom ? insets.bottom : 0,
+        paddingBottom,
         paddingLeft: insets.left,
         paddingRight: insets.right,
       }}

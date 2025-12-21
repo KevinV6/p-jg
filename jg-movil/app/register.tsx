@@ -3,8 +3,9 @@ import { ScreenContainer } from '@/components/shared/ScreenContainer';
 import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
+    Image,
     KeyboardAvoidingView,
     Modal,
     Platform,
@@ -17,20 +18,29 @@ import {
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const { register } = useAuth();
+  const { register, isLoading, error, clearError } = useAuth();
   const [formData, setFormData] = useState({
     nombreusuario: '',
     contrasenia: '',
     confirmarContrasenia: '',
+    email: '',
     primernombre: '',
     apellidopaterno: '',
     apellidomaterno: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Mostrar error del contexto
+  useEffect(() => {
+    if (error) {
+      setErrorMessage(error);
+      setShowErrorModal(true);
+      clearError();
+    }
+  }, [error]);
 
   const handleRegister = async () => {
     const { nombreusuario, contrasenia, confirmarContrasenia, primernombre, apellidopaterno } =
@@ -54,15 +64,17 @@ export default function RegisterScreen() {
       return;
     }
 
-    setLoading(true);
-    const success = await register(formData);
-    setLoading(false);
+    const success = await register({
+      nombreusuario: formData.nombreusuario,
+      contrasenia: formData.contrasenia,
+      email: formData.email || undefined,
+      primernombre: formData.primernombre,
+      apellidopaterno: formData.apellidopaterno,
+      apellidomaterno: formData.apellidomaterno || undefined,
+    });
 
     if (success) {
       router.replace('/(tabs)');
-    } else {
-      setErrorMessage('Error al registrar el usuario');
-      setShowErrorModal(true);
     }
   };
 
@@ -79,6 +91,14 @@ export default function RegisterScreen() {
           <TouchableOpacity onPress={() => router.back()} className="mb-6">
             <Ionicons name="arrow-back" size={24} color="#402612" />
           </TouchableOpacity>
+
+          <View className="mb-6 items-center">
+            <Image
+              source={require('@/assets/images/logos/Logo carrito JG.png')}
+              style={{ width: 140, height: 140 }}
+              resizeMode="contain"
+            />
+          </View>
 
           <View className="mb-8">
             <Text className="text-4xl font-poppins-black text-[#402612] mb-2">
@@ -150,6 +170,22 @@ export default function RegisterScreen() {
             </View>
           </View>
 
+          {/* Email */}
+          <View className="mb-4">
+            <View className="bg-white rounded-xl flex-row items-center border border-[#8B5A3C] px-4 py-3">
+              <Ionicons name="mail-outline" size={20} color="#8B5A3C" />
+              <TextInput
+                className="flex-1 ml-3 text-base font-poppins-regular text-[#402612]"
+                placeholder="Email (opcional)"
+                placeholderTextColor="#8B5A3C"
+                value={formData.email}
+                onChangeText={(text) => setFormData({ ...formData, email: text })}
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
+            </View>
+          </View>
+
           {/* Contraseña */}
           <View className="mb-4">
             <View className="bg-white rounded-xl flex-row items-center border border-[#8B5A3C] px-4 py-3">
@@ -199,8 +235,9 @@ export default function RegisterScreen() {
           {/* Botón Registrarse */}
           <GradientButton
             onPress={handleRegister}
-            title={loading ? 'REGISTRANDO...' : 'REGISTRARSE'}
-            loading={loading}
+            title={isLoading ? 'REGISTRANDO...' : 'REGISTRARSE'}
+            loading={isLoading}
+            disabled={isLoading}
             className="mb-4"
           />
 

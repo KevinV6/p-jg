@@ -1,0 +1,507 @@
+-- =====================================================
+-- SCRIPT DE MIGRACIÓN PARA SUPABASE - PROYECTO JG
+-- Ejecutar en el SQL Editor de Supabase
+-- Fecha: 2025-12-20
+-- =====================================================
+
+-- =====================================================
+-- PARTE 1: MODIFICACIONES A TABLAS EXISTENTES
+-- =====================================================
+
+-- 1.1 Modificar tabla USUARIO
+-- Asegurar longitud para bcrypt y agregar email
+ALTER TABLE public.usuario 
+ALTER COLUMN contrasenia TYPE varchar(100);
+
+ALTER TABLE public.usuario 
+ADD COLUMN IF NOT EXISTS email varchar(255);
+
+-- 1.2 Modificar tabla CLIENTE (reestructurar completamente)
+ALTER TABLE public.cliente 
+ADD COLUMN IF NOT EXISTS ci_nit varchar(20);
+
+ALTER TABLE public.cliente 
+ADD COLUMN IF NOT EXISTS telefono varchar(20);
+
+ALTER TABLE public.cliente 
+ADD COLUMN IF NOT EXISTS direccion varchar(255);
+
+ALTER TABLE public.cliente 
+ADD COLUMN IF NOT EXISTS es_generico boolean NOT NULL DEFAULT false;
+
+ALTER TABLE public.cliente 
+ADD COLUMN IF NOT EXISTS estado smallint NOT NULL DEFAULT 1;
+
+ALTER TABLE public.cliente 
+ADD COLUMN IF NOT EXISTS fechacreacion timestamp without time zone NOT NULL DEFAULT now();
+
+ALTER TABLE public.cliente 
+ADD COLUMN IF NOT EXISTS fechaactualizacion timestamp without time zone;
+
+ALTER TABLE public.cliente 
+ADD COLUMN IF NOT EXISTS usuarioid integer;
+
+-- Agregar FK de cliente a usuario
+ALTER TABLE public.cliente
+ADD CONSTRAINT fk_cliente_usuario FOREIGN KEY (usuarioid) REFERENCES public.usuario(idusuario);
+
+-- Crear índice único para ci_nit (excepto nulls para cliente genérico)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cliente_ci_nit_unique 
+ON public.cliente(ci_nit) 
+WHERE ci_nit IS NOT NULL;
+
+-- 1.3 Modificar tabla CATEGORIA
+ALTER TABLE public.categoria 
+ADD COLUMN IF NOT EXISTS estado smallint NOT NULL DEFAULT 1;
+
+ALTER TABLE public.categoria 
+ADD COLUMN IF NOT EXISTS descripcion varchar(255);
+
+ALTER TABLE public.categoria 
+ADD COLUMN IF NOT EXISTS orden smallint NOT NULL DEFAULT 0;
+
+-- 1.4 Modificar tabla UNIDAD_MEDIDA
+ALTER TABLE public.unidad_medida 
+ADD COLUMN IF NOT EXISTS fechacreacion timestamp without time zone NOT NULL DEFAULT now();
+
+ALTER TABLE public.unidad_medida 
+ADD COLUMN IF NOT EXISTS fechaactualizacion timestamp without time zone;
+
+-- 1.5 Modificar tabla VENTA
+ALTER TABLE public.venta 
+ADD COLUMN IF NOT EXISTS folio varchar(20);
+
+ALTER TABLE public.venta 
+ADD COLUMN IF NOT EXISTS metodopago smallint NOT NULL DEFAULT 1;
+
+ALTER TABLE public.venta 
+ADD COLUMN IF NOT EXISTS montopagado numeric NOT NULL DEFAULT 0;
+
+ALTER TABLE public.venta 
+ADD COLUMN IF NOT EXISTS cambio numeric NOT NULL DEFAULT 0;
+
+ALTER TABLE public.venta 
+ADD COLUMN IF NOT EXISTS observacion varchar(500);
+
+-- Crear índice único para folio
+CREATE UNIQUE INDEX IF NOT EXISTS idx_venta_folio_unique 
+ON public.venta(folio) 
+WHERE folio IS NOT NULL;
+
+-- 1.6 Modificar tabla COBROS
+ALTER TABLE public.cobros 
+ADD COLUMN IF NOT EXISTS clienteid integer;
+
+ALTER TABLE public.cobros 
+ADD COLUMN IF NOT EXISTS ventaid integer;
+
+ALTER TABLE public.cobros 
+ADD COLUMN IF NOT EXISTS origen varchar(10) NOT NULL DEFAULT 'manual';
+
+ALTER TABLE public.cobros 
+ADD COLUMN IF NOT EXISTS observacion varchar(500);
+
+-- Agregar FKs a cobros
+ALTER TABLE public.cobros
+ADD CONSTRAINT fk_cobros_cliente FOREIGN KEY (clienteid) REFERENCES public.cliente(idcliente);
+
+ALTER TABLE public.cobros
+ADD CONSTRAINT fk_cobros_venta FOREIGN KEY (ventaid) REFERENCES public.venta(idventa);
+
+-- Eliminar columna auxventa de cobros (ya no se usa)
+ALTER TABLE public.cobros 
+DROP COLUMN IF EXISTS auxventa;
+
+-- =====================================================
+-- PARTE 2: RENOMBRAR Y MODIFICAR TABLA AUXDETALLE_VENTA
+-- =====================================================
+
+-- Renombrar tabla auxdetalle_venta a detalle_cobro
+ALTER TABLE public.auxdetalle_venta RENAME TO detalle_cobro;
+
+-- Renombrar columnas
+ALTER TABLE public.detalle_cobro RENAME COLUMN idauxventa TO iddetallecobro;
+ALTER TABLE public.detalle_cobro RENAME COLUMN nombreproductoaux TO nombreproducto;
+ALTER TABLE public.detalle_cobro RENAME COLUMN cantidadaux TO cantidad;
+ALTER TABLE public.detalle_cobro RENAME COLUMN pesoaux TO peso;
+
+-- Agregar columnas nuevas
+ALTER TABLE public.detalle_cobro 
+ADD COLUMN IF NOT EXISTS cobroid integer;
+
+ALTER TABLE public.detalle_cobro 
+ADD COLUMN IF NOT EXISTS unidadmedida varchar(20);
+
+ALTER TABLE public.detalle_cobro 
+ADD COLUMN IF NOT EXISTS fechaactualizacion timestamp without time zone;
+
+-- Agregar FK a cobros
+ALTER TABLE public.detalle_cobro
+ADD CONSTRAINT fk_detallecobro_cobro FOREIGN KEY (cobroid) REFERENCES public.cobros(idcobro);
+
+-- Renombrar secuencia
+ALTER SEQUENCE IF EXISTS auxdetalle_venta_idauxventa_seq RENAME TO detalle_cobro_iddetallecobro_seq;
+
+-- =====================================================
+-- PARTE 3: CREAR NUEVAS TABLAS
+-- =====================================================
+
+-- 3.1 Tabla SESION_TOKEN
+CREATE TABLE IF NOT EXISTS public.sesion_token (
+    idsesion integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    usuarioid integer NOT NULL,
+    token varchar(500) NOT NULL UNIQUE,
+    refresh_token varchar(500) UNIQUE,
+    dispositivo varchar(100),
+    fechacreacion timestamp without time zone NOT NULL DEFAULT now(),
+    fechaexpiracion timestamp without time zone NOT NULL,
+    estado smallint NOT NULL DEFAULT 1,
+    CONSTRAINT fk_sesion_usuario FOREIGN KEY (usuarioid) REFERENCES public.usuario(idusuario)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sesion_token ON public.sesion_token(token);
+CREATE INDEX IF NOT EXISTS idx_sesion_usuario ON public.sesion_token(usuarioid);
+
+-- 3.2 Tabla FOLIO_VENTA (para correlativos mensuales)
+CREATE TABLE IF NOT EXISTS public.folio_venta (
+    id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    anio smallint NOT NULL,
+    mes smallint NOT NULL,
+    ultimo_folio integer NOT NULL DEFAULT 0,
+    CONSTRAINT uk_folio_anio_mes UNIQUE (anio, mes)
+);
+
+-- 3.3 Tabla CONFIGURACION_EMPRESA
+CREATE TABLE IF NOT EXISTS public.configuracion_empresa (
+    idconfig integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    nombre_empresa varchar(100) NOT NULL,
+    direccion varchar(255),
+    telefono varchar(20),
+    logo text,
+    moneda varchar(10) NOT NULL DEFAULT 'Bs',
+    mensaje_comprobante text DEFAULT 'Este documento no es válido como factura fiscal.',
+    estado smallint NOT NULL DEFAULT 1,
+    fechacreacion timestamp without time zone NOT NULL DEFAULT now(),
+    fechaactualizacion timestamp without time zone
+);
+
+-- 3.4 Tabla NOTIFICACION
+CREATE TABLE IF NOT EXISTS public.notificacion (
+    idnotificacion integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    usuarioid integer NOT NULL,
+    tipo varchar(50) NOT NULL,
+    titulo varchar(100) NOT NULL,
+    mensaje text,
+    leida boolean NOT NULL DEFAULT false,
+    referencia_tipo varchar(50),
+    referencia_id integer,
+    estado smallint NOT NULL DEFAULT 1,
+    fechacreacion timestamp without time zone NOT NULL DEFAULT now(),
+    CONSTRAINT fk_notificacion_usuario FOREIGN KEY (usuarioid) REFERENCES public.usuario(idusuario)
+);
+
+CREATE INDEX IF NOT EXISTS idx_notificacion_usuario ON public.notificacion(usuarioid);
+CREATE INDEX IF NOT EXISTS idx_notificacion_leida ON public.notificacion(usuarioid, leida);
+
+-- 3.5 Tabla HISTORIAL_PAGO_COBRO
+CREATE TABLE IF NOT EXISTS public.historial_pago_cobro (
+    idhistorial integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    cobroid integer NOT NULL,
+    monto_pagado numeric NOT NULL,
+    metodo_pago smallint NOT NULL DEFAULT 1,
+    observacion varchar(500),
+    usuarioid integer NOT NULL,
+    fechapago timestamp without time zone NOT NULL DEFAULT now(),
+    CONSTRAINT fk_historialpago_cobro FOREIGN KEY (cobroid) REFERENCES public.cobros(idcobro),
+    CONSTRAINT fk_historialpago_usuario FOREIGN KEY (usuarioid) REFERENCES public.usuario(idusuario)
+);
+
+CREATE INDEX IF NOT EXISTS idx_historialpago_cobro ON public.historial_pago_cobro(cobroid);
+
+-- =====================================================
+-- PARTE 4: DATOS INICIALES
+-- =====================================================
+
+-- 4.1 Insertar cliente genérico "Sin nombre"
+INSERT INTO public.cliente (cliente, ci_nit, telefono, direccion, es_generico, estado, fechacreacion)
+SELECT 'Sin nombre', NULL, NULL, NULL, true, 1, now()
+WHERE NOT EXISTS (
+    SELECT 1 FROM public.cliente WHERE es_generico = true
+);
+
+-- 4.2 Insertar configuración inicial de empresa
+INSERT INTO public.configuracion_empresa (nombre_empresa, direccion, telefono, moneda, mensaje_comprobante)
+SELECT 'JG', 'Dirección de la empresa', '00000000', 'Bs', 'Este documento no es válido como factura fiscal.'
+WHERE NOT EXISTS (
+    SELECT 1 FROM public.configuracion_empresa LIMIT 1
+);
+
+-- 4.3 Inicializar folio del mes actual
+INSERT INTO public.folio_venta (anio, mes, ultimo_folio)
+SELECT EXTRACT(YEAR FROM now())::smallint, EXTRACT(MONTH FROM now())::smallint, 0
+WHERE NOT EXISTS (
+    SELECT 1 FROM public.folio_venta 
+    WHERE anio = EXTRACT(YEAR FROM now()) AND mes = EXTRACT(MONTH FROM now())
+);
+
+-- =====================================================
+-- PARTE 5: FUNCIONES Y TRIGGERS
+-- =====================================================
+
+-- 5.1 Función para generar folio de venta
+CREATE OR REPLACE FUNCTION public.generar_folio_venta()
+RETURNS varchar AS $$
+DECLARE
+    v_anio smallint;
+    v_mes smallint;
+    v_folio integer;
+    v_folio_completo varchar(20);
+BEGIN
+    v_anio := EXTRACT(YEAR FROM now())::smallint;
+    v_mes := EXTRACT(MONTH FROM now())::smallint;
+    
+    -- Insertar o actualizar el contador
+    INSERT INTO public.folio_venta (anio, mes, ultimo_folio)
+    VALUES (v_anio, v_mes, 1)
+    ON CONFLICT (anio, mes) 
+    DO UPDATE SET ultimo_folio = public.folio_venta.ultimo_folio + 1
+    RETURNING ultimo_folio INTO v_folio;
+    
+    -- Formatear: AAAA-MM-NNNNNN
+    v_folio_completo := v_anio::text || '-' || LPAD(v_mes::text, 2, '0') || '-' || LPAD(v_folio::text, 6, '0');
+    
+    RETURN v_folio_completo;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 5.2 Función para verificar si cliente tiene deuda pendiente
+CREATE OR REPLACE FUNCTION public.cliente_tiene_deuda(p_clienteid integer)
+RETURNS boolean AS $$
+DECLARE
+    v_tiene_deuda boolean;
+BEGIN
+    SELECT EXISTS (
+        SELECT 1 FROM public.cobros 
+        WHERE clienteid = p_clienteid 
+        AND estado = 1  -- pendiente
+    ) INTO v_tiene_deuda;
+    
+    RETURN v_tiene_deuda;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 5.3 Función para obtener total deuda de cliente
+CREATE OR REPLACE FUNCTION public.obtener_deuda_cliente(p_clienteid integer)
+RETURNS numeric AS $$
+DECLARE
+    v_total_deuda numeric;
+BEGIN
+    SELECT COALESCE(SUM(total), 0) 
+    INTO v_total_deuda
+    FROM public.cobros 
+    WHERE clienteid = p_clienteid 
+    AND estado = 1;  -- pendiente
+    
+    RETURN v_total_deuda;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 5.4 Trigger para actualizar fechaactualizacion automáticamente
+CREATE OR REPLACE FUNCTION public.trigger_set_fechaactualizacion()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.fechaactualizacion = now();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Aplicar trigger a tablas que lo necesitan
+DROP TRIGGER IF EXISTS set_fechaactualizacion_usuario ON public.usuario;
+CREATE TRIGGER set_fechaactualizacion_usuario
+    BEFORE UPDATE ON public.usuario
+    FOR EACH ROW
+    EXECUTE FUNCTION public.trigger_set_fechaactualizacion();
+
+DROP TRIGGER IF EXISTS set_fechaactualizacion_cliente ON public.cliente;
+CREATE TRIGGER set_fechaactualizacion_cliente
+    BEFORE UPDATE ON public.cliente
+    FOR EACH ROW
+    EXECUTE FUNCTION public.trigger_set_fechaactualizacion();
+
+DROP TRIGGER IF EXISTS set_fechaactualizacion_producto ON public.producto;
+CREATE TRIGGER set_fechaactualizacion_producto
+    BEFORE UPDATE ON public.producto
+    FOR EACH ROW
+    EXECUTE FUNCTION public.trigger_set_fechaactualizacion();
+
+DROP TRIGGER IF EXISTS set_fechaactualizacion_venta ON public.venta;
+CREATE TRIGGER set_fechaactualizacion_venta
+    BEFORE UPDATE ON public.venta
+    FOR EACH ROW
+    EXECUTE FUNCTION public.trigger_set_fechaactualizacion();
+
+DROP TRIGGER IF EXISTS set_fechaactualizacion_cobros ON public.cobros;
+CREATE TRIGGER set_fechaactualizacion_cobros
+    BEFORE UPDATE ON public.cobros
+    FOR EACH ROW
+    EXECUTE FUNCTION public.trigger_set_fechaactualizacion();
+
+DROP TRIGGER IF EXISTS set_fechaactualizacion_unidad ON public.unidad_medida;
+CREATE TRIGGER set_fechaactualizacion_unidad
+    BEFORE UPDATE ON public.unidad_medida
+    FOR EACH ROW
+    EXECUTE FUNCTION public.trigger_set_fechaactualizacion();
+
+DROP TRIGGER IF EXISTS set_fechaactualizacion_config ON public.configuracion_empresa;
+CREATE TRIGGER set_fechaactualizacion_config
+    BEFORE UPDATE ON public.configuracion_empresa
+    FOR EACH ROW
+    EXECUTE FUNCTION public.trigger_set_fechaactualizacion();
+
+DROP TRIGGER IF EXISTS set_fechaactualizacion_detallecobro ON public.detalle_cobro;
+CREATE TRIGGER set_fechaactualizacion_detallecobro
+    BEFORE UPDATE ON public.detalle_cobro
+    FOR EACH ROW
+    EXECUTE FUNCTION public.trigger_set_fechaactualizacion();
+
+DROP TRIGGER IF EXISTS set_fechaactualizacion_productounidad ON public.producto_unidad;
+CREATE TRIGGER set_fechaactualizacion_productounidad
+    BEFORE UPDATE ON public.producto_unidad
+    FOR EACH ROW
+    EXECUTE FUNCTION public.trigger_set_fechaactualizacion();
+
+DROP TRIGGER IF EXISTS set_fechaactualizacion_opcionvariante ON public.opcionvariante;
+CREATE TRIGGER set_fechaactualizacion_opcionvariante
+    BEFORE UPDATE ON public.opcionvariante
+    FOR EACH ROW
+    EXECUTE FUNCTION public.trigger_set_fechaactualizacion();
+
+-- =====================================================
+-- PARTE 6: POLÍTICAS DE SEGURIDAD RLS (Row Level Security)
+-- =====================================================
+
+-- Habilitar RLS en tablas sensibles
+ALTER TABLE public.usuario ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sesion_token ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notificacion ENABLE ROW LEVEL SECURITY;
+
+-- Política para sesion_token: solo ver sus propias sesiones
+CREATE POLICY "Usuarios ven sus propias sesiones" ON public.sesion_token
+    FOR ALL USING (auth.uid()::text = usuarioid::text);
+
+-- Política para notificaciones: solo ver sus propias notificaciones
+CREATE POLICY "Usuarios ven sus propias notificaciones" ON public.notificacion
+    FOR ALL USING (auth.uid()::text = usuarioid::text);
+
+-- =====================================================
+-- PARTE 7: CREAR BUCKETS DE STORAGE
+-- =====================================================
+
+-- Nota: Los buckets de storage se crean desde el dashboard de Supabase
+-- o mediante la API. Aquí documentamos la estructura:
+-- 
+-- Bucket: imagenes
+-- Carpetas:
+--   - imagenes/usuarios/
+--   - imagenes/productos/
+--   - imagenes/variantes/
+--
+-- Los archivos se nombrarán con formato: {uuid}-{nombre_original}.{extension}
+
+-- =====================================================
+-- PARTE 8: VISTAS ÚTILES
+-- =====================================================
+
+-- 8.1 Vista de ventas con detalle completo
+CREATE OR REPLACE VIEW public.v_ventas_completas AS
+SELECT 
+    v.idventa,
+    v.folio,
+    v.fecha,
+    v.total,
+    v.tipoventa,
+    v.metodopago,
+    v.montopagado,
+    v.cambio,
+    v.estado,
+    v.observacion,
+    v.fecharegistro,
+    c.idcliente,
+    c.cliente as nombre_cliente,
+    c.ci_nit,
+    c.telefono as telefono_cliente,
+    u.idusuario,
+    u.primernombre || ' ' || u.apellidopaterno as vendedor
+FROM public.venta v
+LEFT JOIN public.cliente c ON v.clienteid = c.idcliente
+LEFT JOIN public.usuario u ON v.usuarioid = u.idusuario;
+
+-- 8.2 Vista de cobros con información completa
+CREATE OR REPLACE VIEW public.v_cobros_completos AS
+SELECT 
+    co.idcobro,
+    co.nombrecobro,
+    co.telefono,
+    co.total,
+    co.estado,
+    co.origen,
+    co.observacion,
+    co.fechacreacion,
+    co.fechapago,
+    co.imagen,
+    c.idcliente,
+    c.cliente as nombre_cliente,
+    c.ci_nit,
+    v.idventa,
+    v.folio as folio_venta,
+    u.idusuario,
+    u.primernombre || ' ' || u.apellidopaterno as vendedor
+FROM public.cobros co
+LEFT JOIN public.cliente c ON co.clienteid = c.idcliente
+LEFT JOIN public.venta v ON co.ventaid = v.idventa
+LEFT JOIN public.usuario u ON co.usuarioid = u.idusuario;
+
+-- 8.3 Vista de productos con sus unidades y precios
+CREATE OR REPLACE VIEW public.v_productos_completos AS
+SELECT 
+    p.idproducto,
+    p.nombreproducto,
+    p.descripcion,
+    p.imagen,
+    p.estado,
+    p.fechacreacion,
+    cat.idcategoria,
+    cat.nombrecategoria,
+    json_agg(
+        json_build_object(
+            'idproductounidad', pu.idproductounidad,
+            'unidadid', um.idunidad,
+            'nombre_unidad', um.nombre,
+            'abreviatura', um.abreviatura,
+            'es_peso', um.es_peso,
+            'precio', pu.precio
+        )
+    ) FILTER (WHERE pu.idproductounidad IS NOT NULL) as unidades
+FROM public.producto p
+LEFT JOIN public.categoria cat ON p.categoriaid = cat.idcategoria
+LEFT JOIN public.producto_unidad pu ON p.idproducto = pu.productoid AND pu.estado = 1
+LEFT JOIN public.unidad_medida um ON pu.unidadid = um.idunidad
+WHERE p.estado = 1
+GROUP BY p.idproducto, cat.idcategoria;
+
+-- 8.4 Vista resumen dashboard
+CREATE OR REPLACE VIEW public.v_resumen_dashboard AS
+SELECT
+    (SELECT COUNT(*) FROM public.venta WHERE estado = 1 AND DATE(fecha) = CURRENT_DATE) as ventas_hoy,
+    (SELECT COALESCE(SUM(total), 0) FROM public.venta WHERE estado = 1 AND DATE(fecha) = CURRENT_DATE) as total_ventas_hoy,
+    (SELECT COUNT(*) FROM public.venta WHERE estado = 1) as total_ventas,
+    (SELECT COALESCE(SUM(total), 0) FROM public.venta WHERE estado = 1) as total_ingresos,
+    (SELECT COUNT(*) FROM public.cobros WHERE estado = 1) as cobros_pendientes,
+    (SELECT COALESCE(SUM(total), 0) FROM public.cobros WHERE estado = 1) as total_cobros_pendientes,
+    (SELECT COUNT(*) FROM public.pedido WHERE estado = 1) as pedidos_pendientes,
+    (SELECT COUNT(*) FROM public.producto WHERE estado = 1) as total_productos,
+    (SELECT COUNT(*) FROM public.cliente WHERE estado = 1 AND es_generico = false) as total_clientes;
+
+-- =====================================================
+-- FIN DEL SCRIPT
+-- =====================================================

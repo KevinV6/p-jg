@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Image, Text, TouchableOpacity, View } from 'react-native';
 
 interface ActionButtonProps {
   title: string;
@@ -72,7 +72,7 @@ export const VentasHero: React.FC<VentasHeroProps> = ({
   return (
     <View className="flex-1 justify-center items-center px-6">
       <View
-        className="w-40 h-40 rounded-full justify-center items-center mb-8 border-4 bg-white"
+        className="w-48 h-48 rounded-full justify-center items-center mb-8 border-4 bg-white"
         style={{
           borderColor: '#402612',
           shadowColor: '#402612',
@@ -82,7 +82,11 @@ export const VentasHero: React.FC<VentasHeroProps> = ({
           elevation: 8,
         }}
       >
-        <Ionicons name="cart" size={90} color="#402612" />
+        <Image
+          source={require('@/assets/images/logos/Logo carrito JG.png')}
+          style={{ width: 160, height: 160 }}
+          resizeMode="contain"
+        />
       </View>
       <Text className="text-4xl font-poppins-black text-[#402612] mb-4 text-center">
         Nueva Venta

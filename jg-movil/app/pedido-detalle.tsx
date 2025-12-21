@@ -1,27 +1,51 @@
 import { SafeHeader, ScreenContainer } from '@/components/shared/ScreenContainer';
+import { useCustomAlert } from '@/components/shared/CustomAlert';
 import { usePedidos } from '@/contexts/PedidosContext';
-import { useVentas } from '@/contexts/VentasContext';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Modal,
     ScrollView,
     Text,
     TouchableOpacity,
     View,
+    ActivityIndicator,
 } from 'react-native';
+import type { Pedido } from '@/types';
 
 export default function PedidoDetalleScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const { getPedidoById, confirmarPedido, cancelarPedido } = usePedidos();
-  const { addVenta } = useVentas();
+  const { getPedidoById, confirmarPedido, cancelarPedido, convertirAVenta, isLoading } = usePedidos();
+  const { showError, showSuccess, AlertComponent } = useCustomAlert();
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [pedido, setPedido] = useState<Pedido | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const pedido = getPedidoById(Number(id));
+  useEffect(() => {
+    const loadPedido = async () => {
+      setLoading(true);
+      const data = await getPedidoById(Number(id));
+      setPedido(data);
+      setLoading(false);
+    };
+    if (id) {
+      loadPedido();
+    }
+  }, [id]);
+
+  if (loading) {
+    return (
+      <ScreenContainer>
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#402612" />
+        </View>
+      </ScreenContainer>
+    );
+  }
 
   if (!pedido) {
     return (
@@ -35,66 +59,70 @@ export default function PedidoDetalleScreen() {
     setShowConfirmModal(true);
   };
 
-  const confirmarAccion = () => {
-    // Convertir pedido a venta
-    const nuevaVenta: any = {
-      fecha: new Date(),
-      clienteid: pedido.clienteid,
-      cliente: pedido.cliente,
-      total: pedido.detalles?.reduce(
-        (sum, d) => sum + d.cantidad * d.precio_referencia,
-        0
-      ) || 0,
-      estado: 1,
-      tipoventa: 1,
-      usuarioid: 1,
-      detalles: pedido.detalles,
-    };
-
-    addVenta(nuevaVenta);
-    confirmarPedido(pedido.idpedido);
-    setShowConfirmModal(false);
-    router.back();
+  const confirmarAccion = async () => {
+    // Convertir pedido a venta usando el nuevo servicio
+    const result = await convertirAVenta(pedido.idpedido, 'contado', pedido.clienteid);
+    
+    if (result) {
+      setShowConfirmModal(false);
+      showSuccess('Éxito', 'Pedido convertido a venta', () => router.back());
+    } else {
+      showError('Error', 'No se pudo convertir el pedido a venta');
+      setShowConfirmModal(false);
+    }
   };
 
   const handleCancelar = () => {
     setShowCancelModal(true);
   };
 
-  const cancelarAccion = () => {
-    cancelarPedido(pedido.idpedido);
+  const cancelarAccion = async () => {
+    const result = await cancelarPedido(pedido.idpedido);
     setShowCancelModal(false);
-    router.back();
+    if (result) {
+      router.back();
+    } else {
+      showError('Error', 'No se pudo cancelar el pedido');
+    }
   };
 
-  const getEstadoColor = (estado: number) => {
+  const getEstadoColor = (estado: string) => {
     switch (estado) {
-      case 1:
+      case 'pendiente':
         return '#FFC107';
-      case 2:
+      case 'confirmado':
+      case 'preparando':
+      case 'listo':
         return '#28A745';
-      case 3:
+      case 'entregado':
+        return '#17A2B8';
+      case 'cancelado':
         return '#DC3545';
       default:
         return '#6B7280';
     }
   };
 
-  const getEstadoTexto = (estado: number) => {
+  const getEstadoTexto = (estado: string) => {
     switch (estado) {
-      case 1:
+      case 'pendiente':
         return 'Pendiente';
-      case 2:
+      case 'confirmado':
         return 'Confirmado';
-      case 3:
+      case 'preparando':
+        return 'Preparando';
+      case 'listo':
+        return 'Listo';
+      case 'entregado':
+        return 'Entregado';
+      case 'cancelado':
         return 'Cancelado';
       default:
         return 'Desconocido';
     }
   };
 
-  const total =
-    pedido.detalles?.reduce((sum, d) => sum + d.cantidad * d.precio_referencia, 0) || 0;
+  const total = pedido.total || 0;
 
   return (
     <ScreenContainer safeTop={false} statusBarStyle="light" statusBarColor="#402612">
@@ -114,29 +142,29 @@ export default function PedidoDetalleScreen() {
         <View className="p-6 mb-4 bg-white mx-4 mt-4 rounded-xl">
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-2xl font-poppins-black text-[#402612]">Pedido #{pedido.idpedido}</Text>
-            <View className="px-4 py-1 rounded-full" style={{ backgroundColor: getEstadoColor(pedido.estado) + '20' }}>
-              <Text className="text-sm font-poppins-semibold" style={{ color: getEstadoColor(pedido.estado) }}>
-                {getEstadoTexto(pedido.estado)}
+            <View className="px-4 py-1 rounded-full" style={{ backgroundColor: getEstadoColor(pedido.estado_pedido) + '20' }}>
+              <Text className="text-sm font-poppins-semibold" style={{ color: getEstadoColor(pedido.estado_pedido) }}>
+                {getEstadoTexto(pedido.estado_pedido)}
               </Text>
             </View>
           </View>
 
           <View className="flex-row items-center gap-2 mt-2">
             <Ionicons name="person" size={20} color="#8B5A3C" />
-            <Text className="text-base font-poppins-regular text-[#8B5A3C]">{pedido.cliente?.cliente}</Text>
+            <Text className="text-base font-poppins-regular text-[#8B5A3C]">{pedido.cliente?.nombrecliente || 'Cliente'}</Text>
           </View>
 
           <View className="flex-row items-center gap-2 mt-2">
             <Ionicons name="calendar" size={20} color="#8B5A3C" />
             <Text className="text-base font-poppins-regular text-[#8B5A3C]">
-              {format(pedido.fechapedido, "dd/MM/yyyy 'a las' HH:mm")}
+              {format(new Date(pedido.fecha), "dd/MM/yyyy 'a las' HH:mm")}
             </Text>
           </View>
 
-          {pedido.observacion && (
+          {pedido.notas && (
             <View className="flex-row gap-2 mt-4 p-4 rounded-xl border border-[#8B5A3C] bg-[#F6EBD7]">
               <Ionicons name="information-circle" size={20} color="#402612" />
-              <Text className="flex-1 text-base italic font-poppins-regular text-[#402612]">{pedido.observacion}</Text>
+              <Text className="flex-1 text-base italic font-poppins-regular text-[#402612]">{pedido.notas}</Text>
             </View>
           )}
         </View>
@@ -161,7 +189,8 @@ export default function PedidoDetalleScreen() {
                 ? `${nombreProducto} - ${nombreVariante}` 
                 : nombreProducto;
               const unidad = detalle.productounidad?.unidad?.abreviatura || detalle.unidadmedida || 'und';
-              const subtotal = detalle.cantidad * detalle.precio_referencia;
+              const precio = detalle.precio || 0;
+              const subtotal = detalle.cantidad * precio;
 
               return (
                 <View key={index} className="flex-row py-3 px-2 border-b border-gray-100 items-center">
@@ -177,7 +206,7 @@ export default function PedidoDetalleScreen() {
                     {detalle.cantidad}
                   </Text>
                   <Text className="flex-1 text-xs font-poppins-regular text-[#402612] text-right">
-                    {detalle.precio_referencia.toFixed(2)}
+                    {precio.toFixed(2)}
                   </Text>
                   <Text className="flex-1 text-xs font-poppins-semibold text-[#402612] text-right">
                     {subtotal.toFixed(2)}
@@ -195,7 +224,7 @@ export default function PedidoDetalleScreen() {
           <Text className="text-4xl font-poppins-black text-[#402612]">Bs. {total.toFixed(2)}</Text>
         </View>
 
-        {pedido.estado === 1 && (
+        {pedido.estado_pedido === 'pendiente' && (
           <View className="p-4 gap-4">
             <TouchableOpacity 
               className="flex-row items-center justify-center gap-2 bg-[#402612] p-4 rounded-xl" 
@@ -305,6 +334,9 @@ export default function PedidoDetalleScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Custom Alert Component */}
+      <AlertComponent />
     </ScreenContainer>
   );
 }

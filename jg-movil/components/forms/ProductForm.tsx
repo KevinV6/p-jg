@@ -1,5 +1,4 @@
 import { useInventario } from '@/contexts/InventarioContext';
-import { mockCategorias } from '@/data/mockData';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from 'react';
@@ -43,7 +42,7 @@ interface ProductFormProps {
 }
 
 export default function ProductForm({ productId, onSave, onCancel }: ProductFormProps) {
-  const { productos } = useInventario();
+  const { productos, categorias } = useInventario();
   const isEditing = !!productId;
 
   const [nombre, setNombre] = useState('');
@@ -371,7 +370,7 @@ export default function ProductForm({ productId, onSave, onCancel }: ProductForm
           className="bg-white border border-gray-200 rounded-xl px-4 py-4 flex-row items-center justify-between"
         >
           <Text className="text-base text-[#3d2b1f] font-poppins">
-            {mockCategorias.find(c => c.idcategoria === categoriaId)?.nombrecategoria || 'Seleccionar categoría'}
+            {categorias.find(c => c.idcategoria === categoriaId)?.nombrecategoria || 'Seleccionar categoría'}
           </Text>
           <Ionicons name="chevron-down" size={20} color="#8B5A3C" />
         </TouchableOpacity>
@@ -399,7 +398,7 @@ export default function ProductForm({ productId, onSave, onCancel }: ProductForm
             </View>
 
             <FlatList
-              data={mockCategorias}
+              data={categorias}
               keyExtractor={(item) => item.idcategoria.toString()}
               renderItem={({ item }) => (
                 <TouchableOpacity

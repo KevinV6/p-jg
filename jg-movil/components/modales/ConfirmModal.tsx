@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Modal, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Modal, Text, TouchableOpacity, View } from 'react-native';
 
 interface ConfirmModalProps {
   visible: boolean;
@@ -13,6 +13,7 @@ interface ConfirmModalProps {
     productos: number;
     total: number;
   };
+  loading?: boolean;
 }
 
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -21,7 +22,8 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   onConfirm,
   title,
   message,
-  data
+  data,
+  loading = false
 }) => {
   return (
     <Modal
@@ -33,7 +35,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
       <View className="flex-1 bg-black/50 justify-center items-center px-6">
         <View className="bg-[#F6EBD7] rounded-2xl w-full max-w-sm">
           <View className="bg-[#402612] rounded-t-2xl px-4 py-4 flex-row items-center">
-            <Ionicons name="help-circle-outline" size={24} color="#F6EBD7" />
+            <Ionicons name={loading ? "hourglass-outline" : "help-circle-outline"} size={24} color="#F6EBD7" />
             <Text className="text-lg font-poppins-bold text-[#F6EBD7] ml-2">
               {title}
             </Text>
@@ -49,7 +51,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
                 <View className="flex-row justify-between mb-2">
                   <Text className="font-poppins-regular text-[#8B5A3C]">Cliente:</Text>
                   <Text className="font-poppins-semibold text-[#402612] flex-1 text-right" numberOfLines={1}>
-                    {data.cliente}
+                    {data.cliente || 'Cliente General'}
                   </Text>
                 </View>
                 <View className="flex-row justify-between mb-2">
@@ -67,25 +69,34 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
               </View>
             )}
 
-            <View className="flex-row gap-3">
-              <TouchableOpacity
-                onPress={onClose}
-                className="flex-1 bg-[#8B5A3C] rounded-xl py-3"
-              >
-                <Text className="text-center text-white font-poppins-semibold">
-                  Cancelar
+            {loading ? (
+              <View className="flex-row items-center justify-center py-4">
+                <ActivityIndicator size="large" color="#402612" />
+                <Text className="text-[#402612] font-poppins-semibold ml-3">
+                  Procesando...
                 </Text>
-              </TouchableOpacity>
+              </View>
+            ) : (
+              <View className="flex-row gap-3">
+                <TouchableOpacity
+                  onPress={onClose}
+                  className="flex-1 bg-[#8B5A3C] rounded-xl py-3"
+                >
+                  <Text className="text-center text-white font-poppins-semibold">
+                    Cancelar
+                  </Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={onConfirm}
-                className="flex-1 bg-[#402612] rounded-xl py-3"
-              >
-                <Text className="text-center text-[#F6EBD7] font-poppins-semibold">
-                  Confirmar
-                </Text>
-              </TouchableOpacity>
-            </View>
+                <TouchableOpacity
+                  onPress={onConfirm}
+                  className="flex-1 bg-[#402612] rounded-xl py-3"
+                >
+                  <Text className="text-center text-[#F6EBD7] font-poppins-semibold">
+                    Confirmar
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </View>
       </View>

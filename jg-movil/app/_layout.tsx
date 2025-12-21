@@ -15,6 +15,8 @@ import { InventarioProvider } from '@/contexts/InventarioContext';
 import { PedidosProvider } from '@/contexts/PedidosContext';
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { VentasProvider } from '@/contexts/VentasContext';
+import { useConnection } from '@/hooks/use-connection';
+import { ConnectionErrorScreen } from '@/components/shared/ConnectionErrorScreen';
 
 // Prevenir que el splash screen se oculte automáticamente
 SplashScreen.preventAutoHideAsync();
@@ -25,6 +27,7 @@ export const unstable_settings = {
 
 function RootNavigator() {
   const { theme } = useTheme();
+  const { isFullyConnected, isChecking, checkConnection } = useConnection();
   const [loaded, error] = useFonts({
     'Poppins-Regular': require('../assets/fonts/Poppins-Regular.ttf'),
     'Poppins-Medium': require('../assets/fonts/Poppins-Medium.ttf'),
@@ -44,6 +47,17 @@ function RootNavigator() {
 
   if (!loaded) {
     return null;
+  }
+
+  // Mostrar pantalla de error de conexión si no hay conectividad completa
+  if (!isFullyConnected && !isChecking) {
+    return (
+      <ConnectionErrorScreen
+        error="No hay conexión a internet o no se puede conectar con el servidor"
+        onRetry={checkConnection}
+        isRetrying={isChecking}
+      />
+    );
   }
   
   return (

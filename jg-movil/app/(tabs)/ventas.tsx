@@ -8,7 +8,7 @@ export default function VentasScreen() {
   const router = useRouter();
 
   return (
-    <ScreenContainer safeTop={false}>
+    <ScreenContainer safeTop={false} hasTabBar={true}>
       <AppHeader title="Ventas" onNotificationPress={() => {}} />
       <VentasHero
         onNuevaVenta={() => router.push('/nueva-venta')}

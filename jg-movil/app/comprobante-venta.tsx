@@ -1,26 +1,53 @@
 import { ComprobanteModal } from '@/components/modales';
 import { ScreenContainer } from '@/components/shared/ScreenContainer';
 import { useVentas } from '@/contexts/VentasContext';
+import { Venta } from '@/types';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Text } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 
 export default function ComprobanteVentaScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const { ventas, getVentaById } = useVentas();
   const [showModal, setShowModal] = useState(true);
-
-  // Si hay ID, buscar esa venta, sino mostrar la última
-  const venta = id
-    ? getVentaById(Number(id))
-    : ventas[ventas.length - 1];
+  const [venta, setVenta] = useState<Venta | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!venta) {
+    const loadVenta = async () => {
+      setLoading(true);
+      try {
+        if (id) {
+          const result = await getVentaById(Number(id));
+          setVenta(result);
+        } else if (ventas.length > 0) {
+          setVenta(ventas[ventas.length - 1]);
+        }
+      } catch (error) {
+        console.error('Error loading venta:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadVenta();
+  }, [id]);
+
+  useEffect(() => {
+    if (!loading && !venta) {
       router.back();
     }
-  }, [venta]);
+  }, [loading, venta]);
+
+  if (loading) {
+    return (
+      <ScreenContainer>
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#402612" />
+        </View>
+      </ScreenContainer>
+    );
+  }
 
   if (!venta) {
     return (
@@ -32,10 +59,10 @@ export default function ComprobanteVentaScreen() {
 
   // Preparar los datos para el ComprobanteModal
   const comprobanteData = {
-    folio: venta.idventa.toString().padStart(6, '0'),
-    fecha: new Date(venta.fecha),
-    cliente: venta.cliente?.cliente || 'Cliente General',
-    tipoventa: venta.tipoventa,
+    folio: venta.folio || venta.idventa.toString().padStart(6, '0'),
+    fecha: new Date(), // Usar fecha actual del móvil
+    cliente: venta.cliente?.nombrecliente || 'Cliente General',
+    tipo_pago: venta.tipo_pago,
     vendedor: venta.usuario ? `${venta.usuario.primernombre || ''} ${venta.usuario.apellidopaterno || ''}`.trim() : undefined,
     total: venta.total,
     detalle: venta.detalles?.map((detalle: any) => {

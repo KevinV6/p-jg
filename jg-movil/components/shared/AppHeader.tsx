@@ -45,13 +45,13 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ title, onNotificationPress
                 <Image source={{ uri: user.photo }} className="w-full h-full" />
               ) : (
                 <Text className="text-white text-base font-poppins-bold">
-                  {user?.primernombre?.[0]}{user?.apellidopaterno?.[0]}
+                  {user?.primernombre?.[0]}
                 </Text>
               )}
             </View>
             <View>
               <Text className="text-base font-poppins-bold text-white">
-                {user?.primernombre} {user?.apellidopaterno}
+                {user?.primernombre}
               </Text>
               <Text className="text-xs font-poppins text-[#F6EBD7] uppercase tracking-wider">
                 {user?.rol}

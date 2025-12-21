@@ -3,9 +3,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { CommonActions, useNavigation } from '@react-navigation/native';
 import React from 'react';
 import {
   Alert,
+  Image,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -14,6 +16,7 @@ import {
 
 export default function MenuScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { user, logout } = useAuth();
 
   const handleLogout = () => {
@@ -27,7 +30,13 @@ export default function MenuScreen() {
           style: 'destructive',
           onPress: async () => {
             await logout();
-            router.replace('/login');
+            // Resetear el stack de navegación para limpiar historial
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: 'login' }],
+              })
+            );
           },
         },
       ]
@@ -82,7 +91,7 @@ export default function MenuScreen() {
   );
 
   return (
-    <ScreenContainer>
+    <ScreenContainer hasTabBar={true}>
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         {/* Header del perfil */}
         <View className="p-6 mb-2">
@@ -97,14 +106,22 @@ export default function MenuScreen() {
                 elevation: 8,
               }}
             >
-              <LinearGradient
-                colors={['#402612', '#8B5A3C']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                className="w-full h-full justify-center items-center"
-              >
-                <Ionicons name="person" size={50} color="#FFFFFF" />
-              </LinearGradient>
+              {user?.photo ? (
+                <Image
+                  source={{ uri: user.photo }}
+                  className="w-full h-full"
+                  resizeMode="cover"
+                />
+              ) : (
+                <LinearGradient
+                  colors={['#402612', '#8B5A3C']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  className="w-full h-full justify-center items-center"
+                >
+                  <Ionicons name="person" size={50} color="#FFFFFF" />
+                </LinearGradient>
+              )}
             </View>
             <Text className="text-2xl font-poppins-black text-[#402612] mb-2">
               {user?.primernombre} {user?.apellidopaterno}
@@ -132,7 +149,7 @@ export default function MenuScreen() {
         {/* Sección de Ventas */}
         <View className="px-6 mb-6">
           <Text className="text-xs font-poppins-black text-[#8B5A3C] px-2 mb-3 uppercase">
-            Ventas
+            Ventanas
           </Text>
           <MenuItem
             icon="time-outline"
@@ -140,6 +157,13 @@ export default function MenuScreen() {
             subtitle="Ver todas las ventas realizadas"
             onPress={() => router.push('/historial-ventas')}
             color="#402612"
+          />
+          <MenuItem
+            icon="people-outline"
+            title="Clientes"
+            subtitle="Gestionar clientes registrados"
+            onPress={() => router.push('/clientes')}
+            color="#3B82F6"
           />
         </View>
 
@@ -152,7 +176,7 @@ export default function MenuScreen() {
             icon="person-outline"
             title="Mi Perfil"
             subtitle="Ver y editar información personal"
-            onPress={() => Alert.alert('Perfil', 'Funcionalidad en desarrollo')}
+            onPress={() => router.push('/perfil')}
             color="#8B5A3C"
           />
           <MenuItem
