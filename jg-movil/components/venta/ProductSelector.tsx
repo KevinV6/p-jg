@@ -244,7 +244,7 @@ export default function ProductSelector({
           </View>
 
           {/* Selector de Unidad de Medida - Modal estilizado */}
-          {selectedProduct.unidades && selectedProduct.unidades.length > 1 && (
+          {selectedProduct.unidades && selectedProduct.unidades.length > 0 && (
             <View className="mb-3">
               <Text className="text-sm font-poppins-semibold text-[#402612] mb-1">
                 Unidad de Medida

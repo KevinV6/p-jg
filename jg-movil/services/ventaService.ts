@@ -72,6 +72,16 @@ class VentaService {
     return api.get<VentaResumen>('/ventas/resumen');
   }
 
+  async getByCliente(clienteId: number, filters?: { fecha_desde?: string; fecha_hasta?: string; tipo_pago?: 'contado' | 'credito' }) {
+    const params = new URLSearchParams();
+    params.append('clienteid', String(clienteId));
+    if (filters?.fecha_desde) params.append('fecha_desde', filters.fecha_desde);
+    if (filters?.fecha_hasta) params.append('fecha_hasta', filters.fecha_hasta);
+    if (filters?.tipo_pago) params.append('tipo_pago', filters.tipo_pago);
+    
+    return api.get<Venta[]>(`/ventas?${params.toString()}`);
+  }
+
   async create(data: VentaCreateData) {
     return api.post<Venta>('/ventas', data);
   }

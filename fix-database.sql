@@ -107,7 +107,7 @@ INSERT INTO public.cliente (
   es_generico, 
   estado
 ) VALUES (
-  'Cliente General',
+  'Sin Nombre',
   '0',
   '',
   '',

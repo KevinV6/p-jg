@@ -123,6 +123,20 @@ function RootNavigator() {
                           headerShown: false
                         }}
                       />
+                      <Stack.Screen
+                        name="clientes"
+                        options={{ 
+                          headerShown: false,
+                          title: 'Gestión de Clientes'
+                        }}
+                      />
+                      <Stack.Screen
+                        name="cliente-historial"
+                        options={{ 
+                          headerShown: false,
+                          title: 'Historial del Cliente'
+                        }}
+                      />
                     </Stack>
                     <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
                   </ThemeProvider>

@@ -103,7 +103,7 @@ const getGenerico = async (req, res) => {
       // Si existe un cliente con S/N, marcarlo como genérico
       const { data: updated, error: updateError } = await supabase
         .from('cliente')
-        .update({ es_generico: true, nombrecliente: 'Cliente General' })
+        .update({ es_generico: true, nombrecliente: 'Sin Nombre' })
         .eq('idcliente', clienteConSN.idcliente)
         .select()
         .single();
@@ -120,7 +120,7 @@ const getGenerico = async (req, res) => {
     const { data: newGenerico, error: createError } = await supabase
       .from('cliente')
       .insert({
-        nombrecliente: 'Cliente General',
+        nombrecliente: 'Sin Nombre',
         ci_nit: 'S/N',
         es_generico: true,
         estado: 1
@@ -278,7 +278,7 @@ const create = async (req, res) => {
 const update = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, nombrecliente, ci_nit, telefono, direccion, email } = req.body;
+    const { nombre, nombrecliente, ci_nit, telefono, direccion } = req.body;
     const clienteNombre = nombrecliente || nombre;
 
     const supabase = getAdminConnection();
@@ -328,7 +328,7 @@ const update = async (req, res) => {
     if (ci_nit !== undefined) updateData.ci_nit = ci_nit;
     if (telefono !== undefined) updateData.telefono = telefono;
     if (direccion !== undefined) updateData.direccion = direccion;
-    if (email !== undefined) updateData.email = email;
+    // Nota: No hay columna 'email' en la tabla cliente
 
     const { data, error } = await supabase
       .from('cliente')

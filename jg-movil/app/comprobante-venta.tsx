@@ -1,6 +1,8 @@
-import { ComprobanteModal } from '@/components/modales';
+import { ComprobanteModal, ConfirmModal } from '@/components/modales';
 import { ScreenContainer } from '@/components/shared/ScreenContainer';
+import { useCustomAlert } from '@/components/shared/CustomAlert';
 import { useVentas } from '@/contexts/VentasContext';
+import { ventaService } from '@/services/ventaService';
 import { Venta } from '@/types';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -9,10 +11,16 @@ import { ActivityIndicator, Text, View } from 'react-native';
 export default function ComprobanteVentaScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const { ventas, getVentaById } = useVentas();
+  const { ventas, getVentaById, loadVentas } = useVentas();
+  const { showError, showSuccess, AlertComponent } = useCustomAlert();
+  
   const [showModal, setShowModal] = useState(true);
   const [venta, setVenta] = useState<Venta | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Estado para anulación
+  const [showAnularModal, setShowAnularModal] = useState(false);
+  const [anulando, setAnulando] = useState(false);
 
   useEffect(() => {
     const loadVenta = async () => {
@@ -58,10 +66,13 @@ export default function ComprobanteVentaScreen() {
   }
 
   // Preparar los datos para el ComprobanteModal
+  // Generar folio para venta en formato V-000001 si no viene de la BD
+  const folioVenta = venta.folio || `V-${venta.idventa.toString().padStart(6, '0')}`;
+  
   const comprobanteData = {
-    folio: venta.folio || venta.idventa.toString().padStart(6, '0'),
+    folio: folioVenta,
     fecha: new Date(), // Usar fecha actual del móvil
-    cliente: venta.cliente?.nombrecliente || 'Cliente General',
+    cliente: venta.cliente?.nombrecliente || 'Sin Nombre',
     tipo_pago: venta.tipo_pago,
     vendedor: venta.usuario ? `${venta.usuario.primernombre || ''} ${venta.usuario.apellidopaterno || ''}`.trim() : undefined,
     total: venta.total,
@@ -90,6 +101,33 @@ export default function ComprobanteVentaScreen() {
     router.replace('/(tabs)');
   };
 
+  const handleAnularRequest = () => {
+    setShowAnularModal(true);
+  };
+
+  const handleAnularVenta = async () => {
+    if (!venta) return;
+
+    setAnulando(true);
+    try {
+      const response = await ventaService.anular(venta.idventa);
+      if (response.success) {
+        showSuccess('Venta Anulada', 'La venta ha sido anulada correctamente', () => {
+          setShowAnularModal(false);
+          loadVentas();
+          router.replace('/(tabs)');
+        });
+      } else {
+        showError('Error', response.error || 'No se pudo anular la venta');
+      }
+    } catch (error) {
+      console.error('Error anulando venta:', error);
+      showError('Error', 'Ocurrió un error al anular la venta');
+    } finally {
+      setAnulando(false);
+    }
+  };
+
   return (
     <ScreenContainer>
       <ComprobanteModal
@@ -102,7 +140,28 @@ export default function ComprobanteVentaScreen() {
         onButtonPress={handleGoHome}
         tipo="venta"
         showSuccessHeader={false}
+        onAnular={handleAnularRequest}
       />
+
+      {/* Modal de confirmación anular */}
+      <ConfirmModal
+        visible={showAnularModal}
+        onClose={() => setShowAnularModal(false)}
+        onConfirm={handleAnularVenta}
+        title="Anular Venta"
+        message={`¿Estás seguro de anular la venta ${folioVenta}?${venta?.tipo_pago === 'credito' ? '\n\nNota: También se anulará el cobro asociado.' : ''}`}
+        data={{
+          cliente: venta?.cliente?.nombrecliente || 'Sin Nombre',
+          productos: venta?.detalles?.length || 0,
+          total: venta?.total || 0,
+        }}
+        loading={anulando}
+        confirmText="Anular Venta"
+        confirmColor="#EF4444"
+      />
+
+      {/* Custom Alert Component */}
+      <AlertComponent />
     </ScreenContainer>
   );
 }

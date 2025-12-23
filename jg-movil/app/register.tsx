@@ -1,24 +1,23 @@
+import { ErrorModal, InputField, LoadingModal, SwitchAuthLink } from '@/components/auth';
 import { GradientButton } from '@/components/shared/GradientButton';
 import { ScreenContainer } from '@/components/shared/ScreenContainer';
 import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     Image,
     KeyboardAvoidingView,
-    Modal,
     Platform,
     ScrollView,
     Text,
-    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const { register, isLoading, error, clearError } = useAuth();
+  const { register, isLoading, error, errorTitle, clearError } = useAuth();
   const [formData, setFormData] = useState({
     nombreusuario: '',
     contrasenia: '',
@@ -32,33 +31,48 @@ export default function RegisterScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [modalErrorTitle, setModalErrorTitle] = useState('Error');
+  
+  const lastErrorRef = useRef<string | null>(null);
 
   // Mostrar error del contexto
   useEffect(() => {
-    if (error) {
+    if (error && error !== lastErrorRef.current) {
+      lastErrorRef.current = error;
+      setModalErrorTitle(errorTitle || 'Error');
       setErrorMessage(error);
       setShowErrorModal(true);
       clearError();
     }
-  }, [error]);
+  }, [error, errorTitle]);
+
+  const handleCloseErrorModal = () => {
+    setShowErrorModal(false);
+    setTimeout(() => {
+      lastErrorRef.current = null;
+    }, 500);
+  };
 
   const handleRegister = async () => {
     const { nombreusuario, contrasenia, confirmarContrasenia, primernombre, apellidopaterno } =
       formData;
 
     if (!nombreusuario || !contrasenia || !primernombre || !apellidopaterno) {
+      setModalErrorTitle('Campos incompletos');
       setErrorMessage('Por favor complete los campos obligatorios');
       setShowErrorModal(true);
       return;
     }
 
     if (contrasenia !== confirmarContrasenia) {
+      setModalErrorTitle('Error de validación');
       setErrorMessage('Las contraseñas no coinciden');
       setShowErrorModal(true);
       return;
     }
 
     if (contrasenia.length < 6) {
+      setModalErrorTitle('Contraseña inválida');
       setErrorMessage('La contraseña debe tener al menos 6 caracteres');
       setShowErrorModal(true);
       return;
@@ -76,6 +90,10 @@ export default function RegisterScreen() {
     if (success) {
       router.replace('/(tabs)');
     }
+  };
+
+  const updateForm = (field: string, value: string) => {
+    setFormData({ ...formData, [field]: value });
   };
 
   return (
@@ -109,127 +127,65 @@ export default function RegisterScreen() {
             </Text>
           </View>
 
-          {/* Nombre de usuario */}
-          <View className="mb-4">
-            <View className="bg-white rounded-xl flex-row items-center border border-[#8B5A3C] px-4 py-3">
-              <Ionicons name="person-outline" size={20} color="#8B5A3C" />
-              <TextInput
-                className="flex-1 ml-3 text-base font-poppins-regular text-[#402612]"
-                placeholder="Nombre de usuario *"
-                placeholderTextColor="#8B5A3C"
-                value={formData.nombreusuario}
-                onChangeText={(text) => setFormData({ ...formData, nombreusuario: text })}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
-          </View>
+          <View className="gap-4">
+            <InputField
+              icon="person-outline"
+              placeholder="Nombre de usuario *"
+              value={formData.nombreusuario}
+              onChangeText={(text) => updateForm('nombreusuario', text)}
+            />
 
-          {/* Primer nombre */}
-          <View className="mb-4">
-            <View className="bg-white rounded-xl flex-row items-center border border-[#8B5A3C] px-4 py-3">
-              <Ionicons name="person" size={20} color="#8B5A3C" />
-              <TextInput
-                className="flex-1 ml-3 text-base font-poppins-regular text-[#402612]"
-                placeholder="Primer nombre *"
-                placeholderTextColor="#8B5A3C"
-                value={formData.primernombre}
-                onChangeText={(text) => setFormData({ ...formData, primernombre: text })}
-                autoCapitalize="words"
-              />
-            </View>
-          </View>
+            <InputField
+              icon="person"
+              placeholder="Primer nombre *"
+              value={formData.primernombre}
+              onChangeText={(text) => updateForm('primernombre', text)}
+              autoCapitalize="words"
+            />
 
-          {/* Apellido paterno */}
-          <View className="mb-4">
-            <View className="bg-white rounded-xl flex-row items-center border border-[#8B5A3C] px-4 py-3">
-              <Ionicons name="person" size={20} color="#8B5A3C" />
-              <TextInput
-                className="flex-1 ml-3 text-base font-poppins-regular text-[#402612]"
-                placeholder="Apellido paterno *"
-                placeholderTextColor="#8B5A3C"
-                value={formData.apellidopaterno}
-                onChangeText={(text) => setFormData({ ...formData, apellidopaterno: text })}
-                autoCapitalize="words"
-              />
-            </View>
-          </View>
+            <InputField
+              icon="person"
+              placeholder="Apellido paterno *"
+              value={formData.apellidopaterno}
+              onChangeText={(text) => updateForm('apellidopaterno', text)}
+              autoCapitalize="words"
+            />
 
-          {/* Apellido materno */}
-          <View className="mb-4">
-            <View className="bg-white rounded-xl flex-row items-center border border-[#8B5A3C] px-4 py-3">
-              <Ionicons name="person" size={20} color="#8B5A3C" />
-              <TextInput
-                className="flex-1 ml-3 text-base font-poppins-regular text-[#402612]"
-                placeholder="Apellido materno (opcional)"
-                placeholderTextColor="#8B5A3C"
-                value={formData.apellidomaterno}
-                onChangeText={(text) => setFormData({ ...formData, apellidomaterno: text })}
-                autoCapitalize="words"
-              />
-            </View>
-          </View>
+            <InputField
+              icon="person"
+              placeholder="Apellido materno (opcional)"
+              value={formData.apellidomaterno}
+              onChangeText={(text) => updateForm('apellidomaterno', text)}
+              autoCapitalize="words"
+            />
 
-          {/* Email */}
-          <View className="mb-4">
-            <View className="bg-white rounded-xl flex-row items-center border border-[#8B5A3C] px-4 py-3">
-              <Ionicons name="mail-outline" size={20} color="#8B5A3C" />
-              <TextInput
-                className="flex-1 ml-3 text-base font-poppins-regular text-[#402612]"
-                placeholder="Email (opcional)"
-                placeholderTextColor="#8B5A3C"
-                value={formData.email}
-                onChangeText={(text) => setFormData({ ...formData, email: text })}
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
-            </View>
-          </View>
+            <InputField
+              icon="mail-outline"
+              placeholder="Email (opcional)"
+              value={formData.email}
+              onChangeText={(text) => updateForm('email', text)}
+              keyboardType="email-address"
+            />
 
-          {/* Contraseña */}
-          <View className="mb-4">
-            <View className="bg-white rounded-xl flex-row items-center border border-[#8B5A3C] px-4 py-3">
-              <Ionicons name="lock-closed-outline" size={20} color="#8B5A3C" />
-              <TextInput
-                className="flex-1 ml-3 text-base font-poppins-regular text-[#402612]"
-                placeholder="Contraseña *"
-                placeholderTextColor="#8B5A3C"
-                value={formData.contrasenia}
-                onChangeText={(text) => setFormData({ ...formData, contrasenia: text })}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                <Ionicons
-                  name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                  size={20}
-                  color="#8B5A3C"
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
+            <InputField
+              icon="lock-closed-outline"
+              placeholder="Contraseña *"
+              value={formData.contrasenia}
+              onChangeText={(text) => updateForm('contrasenia', text)}
+              secureTextEntry={true}
+              showPassword={showPassword}
+              onTogglePassword={() => setShowPassword(!showPassword)}
+            />
 
-          {/* Confirmar contraseña */}
-          <View className="mb-6">
-            <View className="bg-white rounded-xl flex-row items-center border border-[#8B5A3C] px-4 py-3">
-              <Ionicons name="lock-closed-outline" size={20} color="#8B5A3C" />
-              <TextInput
-                className="flex-1 ml-3 text-base font-poppins-regular text-[#402612]"
-                placeholder="Confirmar contraseña *"
-                placeholderTextColor="#8B5A3C"
-                value={formData.confirmarContrasenia}
-                onChangeText={(text) => setFormData({ ...formData, confirmarContrasenia: text })}
-                secureTextEntry={!showConfirmPassword}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-                <Ionicons
-                  name={showConfirmPassword ? 'eye-outline' : 'eye-off-outline'}
-                  size={20}
-                  color="#8B5A3C"
-                />
-              </TouchableOpacity>
-            </View>
+            <InputField
+              icon="lock-closed-outline"
+              placeholder="Confirmar contraseña *"
+              value={formData.confirmarContrasenia}
+              onChangeText={(text) => updateForm('confirmarContrasenia', text)}
+              secureTextEntry={true}
+              showPassword={showConfirmPassword}
+              onTogglePassword={() => setShowConfirmPassword(!showConfirmPassword)}
+            />
           </View>
 
           {/* Botón Registrarse */}
@@ -238,47 +194,32 @@ export default function RegisterScreen() {
             title={isLoading ? 'REGISTRANDO...' : 'REGISTRARSE'}
             loading={isLoading}
             disabled={isLoading}
-            className="mb-4"
+            className="mt-6 mb-4"
           />
 
           {/* Link iniciar sesión */}
-          <TouchableOpacity className="items-center py-2" onPress={() => router.back()}>
-            <Text className="text-base font-poppins-regular text-[#8B5A3C]">
-              ¿Ya tienes cuenta?{' '}
-              <Text className="font-poppins-bold text-[#402612]">Inicia sesión</Text>
-            </Text>
-          </TouchableOpacity>
+          <SwitchAuthLink
+            question="¿Ya tienes cuenta?"
+            actionText="Inicia sesión"
+            onPress={() => router.back()}
+          />
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Modal de error */}
-      <Modal
+      {/* Modal de Carga */}
+      <LoadingModal
+        visible={isLoading}
+        message="Registrando..."
+        submessage="Por favor espera"
+      />
+
+      {/* Modal de Error */}
+      <ErrorModal
         visible={showErrorModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowErrorModal(false)}
-      >
-        <View className="flex-1 bg-black/50 justify-center items-center px-6">
-          <View className="bg-[#F6EBD7] rounded-2xl w-full max-w-sm">
-            <View className="bg-[#D32F2F] rounded-t-2xl px-4 py-4">
-              <Text className="text-lg font-poppins-bold text-white">Error</Text>
-            </View>
-
-            <View className="p-6">
-              <Text className="text-base font-poppins-regular text-[#402612] mb-6 text-center">
-                {errorMessage}
-              </Text>
-
-              <TouchableOpacity
-                onPress={() => setShowErrorModal(false)}
-                className="bg-[#402612] rounded-xl py-3"
-              >
-                <Text className="text-center text-white font-poppins-semibold">Aceptar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        title={modalErrorTitle}
+        message={errorMessage}
+        onClose={handleCloseErrorModal}
+      />
     </ScreenContainer>
   );
 }
