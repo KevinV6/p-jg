@@ -4,6 +4,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import React from 'react';
 import { Alert, Modal, ScrollView, Share, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface DetalleItem {
   nombreProducto?: string;
@@ -39,6 +40,7 @@ interface ComprobanteModalProps {
   onButtonPress?: () => void;
   tipo?: 'venta' | 'cobro';
   showSuccessHeader?: boolean;
+  onAnular?: () => void;
 }
 
 export const ComprobanteModal: React.FC<ComprobanteModalProps> = ({
@@ -50,7 +52,8 @@ export const ComprobanteModal: React.FC<ComprobanteModalProps> = ({
   buttonText = 'Continuar',
   onButtonPress,
   showSuccessHeader = true,
-  tipo = 'venta'
+  tipo = 'venta',
+  onAnular,
 }) => {
   const formatFecha = (date: Date | string) => {
     return format(new Date(date), 'dd/MM/yyyy HH:mm');
@@ -183,6 +186,8 @@ export const ComprobanteModal: React.FC<ComprobanteModalProps> = ({
     }
   };
 
+  const insets = useSafeAreaInsets();
+
   return (
     <Modal
       visible={visible}
@@ -191,9 +196,9 @@ export const ComprobanteModal: React.FC<ComprobanteModalProps> = ({
       onRequestClose={onClose}
     >
       <View className="flex-1 bg-[#F6EBD7]">
-        {/* Header */}
+        {/* Header con zona segura */}
         {showSuccessHeader ? (
-          <View className="bg-[#402612] px-4 py-10 items-center">
+          <View className="bg-[#402612] px-4 pb-6 items-center" style={{ paddingTop: insets.top + 16 }}>
             <View className="bg-white rounded-full p-4 mb-4">
               <Ionicons name="checkmark-circle" size={48} color="#00D98E" />
             </View>
@@ -205,7 +210,7 @@ export const ComprobanteModal: React.FC<ComprobanteModalProps> = ({
             </Text>
           </View>
         ) : (
-          <View className="bg-[#402612] px-4 py-4 flex-row items-center">
+          <View className="bg-[#402612] px-4 pb-4 flex-row items-center" style={{ paddingTop: insets.top + 16 }}>
             <TouchableOpacity onPress={onClose} className="mr-3">
               <Ionicons name="arrow-back" size={24} color="#F6EBD7" />
             </TouchableOpacity>
@@ -394,6 +399,26 @@ export const ComprobanteModal: React.FC<ComprobanteModalProps> = ({
               </View>
               <Text className="text-xs font-poppins-semibold text-[#402612]">Imprimir</Text>
             </TouchableOpacity>
+
+            {onAnular && (
+              <TouchableOpacity 
+                className="flex-1 flex-col items-center bg-white p-3 rounded-xl"
+                style={{
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.08,
+                  shadowRadius: 6,
+                  elevation: 2,
+                }}
+                onPress={onAnular}
+                activeOpacity={0.8}
+              >
+                <View className="w-10 h-10 rounded-xl justify-center items-center mb-1" style={{ backgroundColor: '#EF444420' }}>
+                  <Ionicons name="close-circle" size={20} color="#EF4444" />
+                </View>
+                <Text className="text-xs font-poppins-semibold text-[#EF4444]">Anular</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={{ height: 20 }} />

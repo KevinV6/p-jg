@@ -1,6 +1,16 @@
 import { ComprobanteModal, ConfirmModal } from '@/components/modales';
 import { SafeHeader, ScreenContainer } from '@/components/shared/ScreenContainer';
 import { useCustomAlert } from '@/components/shared/CustomAlert';
+import { 
+  ClienteAutocomplete, 
+  CiNitInput, 
+  TelefonoInput, 
+  ClienteDataCard,
+  ClienteStatusCobro,
+  ClienteAlertBanner,
+  CobroInfoSection,
+  FormHeader
+} from '@/components/forms';
 import ProductSelector, { ItemCarrito } from '@/components/venta/ProductSelector';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCobros } from '@/contexts/CobrosContext';
@@ -12,13 +22,12 @@ import React, { useState, useEffect } from 'react';
 import {
   ActivityIndicator,
   Platform,
-  ScrollView,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+
 
 export default function CobroFormScreen() {
   const router = useRouter();
@@ -200,8 +209,12 @@ export default function CobroFormScreen() {
       if (result) {
         console.log('[CobroForm] === COBRO EXITOSO ===');
         
+        // Generar folio para cobro en formato C-000001
+        const folioCobro = `C-${result.idcobro?.toString().padStart(6, '0')}`;
+        
         setCobroRealizado({
           ...result,
+          folio: folioCobro,
           cliente: clienteNombre,
           telefono: telefono,
           detalle: carrito.map((item) => ({
@@ -239,14 +252,7 @@ export default function CobroFormScreen() {
     <ScreenContainer safeTop={false} statusBarStyle="light" statusBarColor="#402612">
       {/* Header */}
       <SafeHeader>
-        <View className="bg-[#402612] px-4 py-4 flex-row items-center">
-          <TouchableOpacity onPress={() => router.back()} className="mr-3">
-            <Ionicons name="arrow-back" size={24} color="#F6EBD7" />
-          </TouchableOpacity>
-          <Text className="text-xl font-poppins-semibold text-[#F6EBD7]">
-            Nuevo Cobro
-          </Text>
-        </View>
+        <FormHeader title="Nuevo Cobro" onBack={() => router.back()} />
       </SafeHeader>
 
       <KeyboardAwareScrollView
@@ -260,165 +266,57 @@ export default function CobroFormScreen() {
         enableResetScrollToCoords={false}
         keyboardOpeningTime={0}
       >
-        {/* Datos del Cliente - igual que nueva-venta */}
-          <View className="mb-4 bg-white rounded-xl p-4 border border-[#E5E5E5]">
-            <Text className="text-base font-poppins-bold text-[#402612] mb-3">
-              Datos del Cliente
-            </Text>
-            
-            {/* Nombre del Cliente */}
-            <View className="mb-3">
-              <Text className="text-sm font-poppins-semibold text-[#8B5A3C] mb-1">
-                Nombre {!clienteId && <Text className="text-xs font-poppins-regular">(nuevo cliente si no existe)</Text>}
-              </Text>
-              <View className="relative">
-                <TextInput
-                  className={`bg-[#F6EBD7] border rounded-xl px-4 py-3 text-[#402612] font-poppins-regular ${
-                    clienteId ? 'border-green-500' : 'border-[#8B5A3C]'
-                  }`}
-                  placeholder="Buscar o escribir nombre..."
-                  placeholderTextColor="#8B5A3C80"
-                  value={clienteNombre}
-                  onChangeText={handleClienteChange}
-                  onFocus={() => clienteNombre.length > 1 && setShowSugerencias(true)}
-                />
-                {clienteId && (
-                  <View className="absolute right-3 top-3">
-                    <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-                  </View>
-                )}
-              </View>
-              
-              {/* Sugerencias */}
-              {showSugerencias && clienteSugerencias.length > 0 && (
-                <View 
-                  className="bg-white border border-[#8B5A3C] rounded-xl mt-1 max-h-40 absolute top-full left-0 right-0 shadow-lg"
-                  style={{ zIndex: 9999, elevation: 10 }}
-                >
-                  <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="always">
-                    {clienteSugerencias.map((sug) => (
-                      <TouchableOpacity
-                        key={sug.idcliente}
-                        onPress={() => selectCliente(sug)}
-                        className="px-4 py-3 border-b border-[#E5E5E5] active:bg-[#F6EBD7]"
-                        activeOpacity={0.7}
-                      >
-                        <Text className="text-[#402612] font-poppins-semibold">{sug.nombrecliente}</Text>
-                        {sug.ci_nit && (
-                          <Text className="text-[#8B5A3C] font-poppins-regular text-sm">CI/NIT: {sug.ci_nit}</Text>
-                        )}
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
-            </View>
-
-            {/* CI/NIT */}
-            <View className="mb-3">
-              <Text className="text-sm font-poppins-semibold text-[#8B5A3C] mb-1">
-                CI/NIT <Text className="text-xs font-poppins-regular">(opcional, mín. 8 dígitos)</Text>
-              </Text>
-              <TextInput
-                className="bg-[#F6EBD7] border border-[#8B5A3C] rounded-xl px-4 py-3 text-[#402612] font-poppins-regular"
-                placeholder="Ej: 12345678 (mínimo 8)"
-                placeholderTextColor="#8B5A3C80"
-                value={clienteCiNit}
-                onChangeText={handleCiNitChange}
-                keyboardType="default"
-                maxLength={20}
-              />
-            </View>
-
-            {/* Teléfono */}
-            <View>
-              <Text className="text-sm font-poppins-semibold text-[#8B5A3C] mb-1">
-                Teléfono <Text className="text-xs font-poppins-regular">(opcional)</Text>
-              </Text>
-              <TextInput
-                className="bg-[#F6EBD7] border border-[#8B5A3C] rounded-xl px-4 py-3 text-[#402612] font-poppins-regular"
-                placeholder="987654321"
-                placeholderTextColor="#8B5A3C80"
-                value={telefono}
-                onChangeText={setTelefono}
-                keyboardType="phone-pad"
-              />
-            </View>
-
-            {/* Indicador de cliente */}
-            {clienteId ? (
-              <View className="mt-3 flex-row items-center">
-                <Ionicons name="person-circle" size={16} color="#22c55e" />
-                <Text className="text-green-600 font-poppins-regular text-sm ml-1">
-                  Cliente existente seleccionado
-                </Text>
-              </View>
-            ) : clienteNombre.trim() ? (
-              <View className="mt-3 flex-row items-center">
-                <Ionicons name="person-add" size={16} color="#DC2626" />
-                <Text className="text-red-600 font-poppins-regular text-sm ml-1">
-                  <Text className="font-poppins-semibold">No válido:</Text> Debes seleccionar un cliente existente
-                </Text>
-              </View>
-            ) : null}
-            
-            {/* Aviso para cobros */}
-            {!clienteId && (
-              <View className="mt-2 bg-red-50 border border-red-200 rounded-lg p-3 flex-row items-start">
-                <Ionicons name="alert-circle" size={20} color="#DC2626" />
-                <Text className="flex-1 text-red-600 font-poppins-regular text-xs ml-2">
-                  <Text className="font-poppins-semibold">Atención:</Text> Los cobros requieren seleccionar un cliente existente de la lista.
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {/* Info adicional del cobro */}
-          <View className="mb-4 bg-white rounded-xl p-4 border border-[#E5E5E5]">
-            <Text className="text-base font-poppins-bold text-[#402612] mb-3">
-              Información Adicional
-            </Text>
-
-            {/* Fecha de Vencimiento */}
-            <View className="mb-3">
-              <Text className="text-sm font-poppins-semibold text-[#8B5A3C] mb-1">
-                Fecha de Vencimiento <Text className="text-xs font-poppins-regular">(opcional)</Text>
-              </Text>
-              <TextInput
-                className="bg-[#F6EBD7] border border-[#8B5A3C] rounded-xl px-4 py-3 text-[#402612] font-poppins-regular"
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor="#8B5A3C80"
-                value={fechaVencimiento}
-                onChangeText={setFechaVencimiento}
-              />
-            </View>
-
-            {/* Notas */}
-            <View>
-              <Text className="text-sm font-poppins-semibold text-[#8B5A3C] mb-1">
-                Notas <Text className="text-xs font-poppins-regular">(opcional)</Text>
-              </Text>
-              <TextInput
-                className="bg-[#F6EBD7] border border-[#8B5A3C] rounded-xl px-4 py-3 text-[#402612] font-poppins-regular"
-                placeholder="Notas adicionales..."
-                placeholderTextColor="#8B5A3C80"
-                value={notas}
-                onChangeText={setNotas}
-                multiline
-                numberOfLines={2}
-                style={{ height: 60, textAlignVertical: 'top' }}
-              />
-            </View>
-          </View>
-
-          {/* Componente de Selección de Productos */}
-          <ProductSelector
-            carrito={carrito}
-            onAddToCart={handleAddToCart}
-            onRemoveFromCart={handleRemoveFromCart}
-            showInternalTotal={false}
+        {/* Datos del Cliente */}
+        <ClienteDataCard>
+          <ClienteAutocomplete
+            clienteId={clienteId}
+            clienteNombre={clienteNombre}
+            clienteSugerencias={clienteSugerencias}
+            showSugerencias={showSugerencias}
+            onChangeText={handleClienteChange}
+            onSelectCliente={selectCliente}
+            onFocus={() => clienteNombre.length > 1 && setShowSugerencias(true)}
+            helperText={!clienteId ? "(nuevo cliente si no existe)" : undefined}
           />
+
+          <CiNitInput
+            value={clienteCiNit}
+            onChangeText={handleCiNitChange}
+          />
+
+          <TelefonoInput
+            value={telefono}
+            onChangeText={setTelefono}
+          />
+
+          <ClienteStatusCobro
+            clienteId={clienteId}
+            clienteNombre={clienteNombre}
+          />
+          
+          <ClienteAlertBanner
+            type="cobro"
+            visible={!clienteId}
+          />
+        </ClienteDataCard>
+
+        {/* Info adicional del cobro */}
+        <CobroInfoSection
+          fechaVencimiento={fechaVencimiento}
+          onFechaChange={setFechaVencimiento}
+          notas={notas}
+          onNotasChange={setNotas}
+        />
+
+        {/* Componente de Selección de Productos */}
+        <ProductSelector
+          carrito={carrito}
+          onAddToCart={handleAddToCart}
+          onRemoveFromCart={handleRemoveFromCart}
+          showInternalTotal={false}
+        />
       </KeyboardAwareScrollView>
+
 
       {/* Botón Finalizar */}
       {carrito.length > 0 && (

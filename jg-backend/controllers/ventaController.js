@@ -244,7 +244,7 @@ const create = async (req, res) => {
     // Si es venta a crédito, verificar que no sea cliente genérico
     if (tipo_pago === 'credito' && cliente.es_generico) {
       console.log('ERROR: Venta a crédito con cliente genérico');
-      return errorResponse(res, 'No se puede hacer venta a crédito al cliente "Cliente General". Debe registrar los datos del cliente.', 400);
+      return errorResponse(res, 'No se puede hacer venta a crédito al cliente "Sin Nombre". Debe registrar los datos del cliente.', 400);
     }
 
     // Calcular total si no viene

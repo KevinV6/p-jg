@@ -15,6 +15,7 @@ import { InventarioProvider } from '@/contexts/InventarioContext';
 import { PedidosProvider } from '@/contexts/PedidosContext';
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { VentasProvider } from '@/contexts/VentasContext';
+import { AppDataProvider } from '@/contexts/AppDataContext';
 import { useConnection } from '@/hooks/use-connection';
 import { ConnectionErrorScreen } from '@/components/shared/ConnectionErrorScreen';
 
@@ -67,64 +68,80 @@ function RootNavigator() {
           <VentasProvider>
             <PedidosProvider>
               <CobrosProvider>
-                <PaperProvider>
-                  <ThemeProvider value={theme === 'dark' ? DarkTheme : DefaultTheme}>
-                      <Stack screenOptions={{ headerShown: false }}>
-                      <Stack.Screen name="login" options={{ headerShown: false }} />
-                    <Stack.Screen name="register" options={{ headerShown: false }} />
-                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                    <Stack.Screen
-                      name="producto-form"
-                      options={{ 
-                        headerShown: false,
-                        presentation: 'modal'
-                      }}
-                    />
-                    <Stack.Screen
-                      name="cobro-form"
-                      options={{ 
-                        headerShown: false,
-                        presentation: 'modal'
-                      }}
-                    />
-                    <Stack.Screen
-                      name="pedido-detalle"
-                      options={{ 
-                        headerShown: false,
-                        title: 'Detalle del Pedido'
-                      }}
-                    />
-                    <Stack.Screen
-                      name="comprobante-venta"
-                      options={{ 
-                        headerShown: false,
-                        title: 'Comprobante de Venta'
-                      }}
-                    />
-                    <Stack.Screen
-                      name="historial-ventas"
-                      options={{ 
-                        headerShown: false,
-                        title: 'Historial de Ventas'
-                      }}
-                    />
-                    <Stack.Screen
-                      name="nueva-venta"
-                      options={{ 
-                        headerShown: false,
-                        title: 'Nueva Venta'
-                      }}
-                    />
-                    <Stack.Screen
-                      name="configuracion"
-                      options={{ 
-                        headerShown: false
-                      }}
-                    />
-                  </Stack>
-                  <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
-                </ThemeProvider>
-              </PaperProvider>
+                <AppDataProvider>
+                  <PaperProvider>
+                    <ThemeProvider value={theme === 'dark' ? DarkTheme : DefaultTheme}>
+                        <Stack screenOptions={{ headerShown: false }}>
+                        <Stack.Screen name="login" options={{ headerShown: false }} />
+                      <Stack.Screen name="register" options={{ headerShown: false }} />
+                      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                      <Stack.Screen
+                        name="producto-form"
+                        options={{ 
+                          headerShown: false,
+                          presentation: 'modal'
+                        }}
+                      />
+                      <Stack.Screen
+                        name="cobro-form"
+                        options={{ 
+                          headerShown: false,
+                          presentation: 'modal'
+                        }}
+                      />
+                      <Stack.Screen
+                        name="pedido-detalle"
+                        options={{ 
+                          headerShown: false,
+                          title: 'Detalle del Pedido'
+                        }}
+                      />
+                      <Stack.Screen
+                        name="comprobante-venta"
+                        options={{ 
+                          headerShown: false,
+                          title: 'Comprobante de Venta'
+                        }}
+                      />
+                      <Stack.Screen
+                        name="historial-ventas"
+                        options={{ 
+                          headerShown: false,
+                          title: 'Historial de Ventas'
+                        }}
+                      />
+                      <Stack.Screen
+                        name="nueva-venta"
+                        options={{ 
+                          headerShown: false,
+                          title: 'Nueva Venta'
+                        }}
+                      />
+                      <Stack.Screen
+                        name="configuracion"
+                        options={{ 
+                          headerShown: false
+                        }}
+                      />
+                      <Stack.Screen
+                        name="clientes"
+                        options={{ 
+                          headerShown: false,
+                          title: 'Gestión de Clientes'
+                        }}
+                      />
+                      <Stack.Screen
+                        name="cliente-historial"
+                        options={{ 
+                          headerShown: false,
+                          title: 'Historial del Cliente'
+                        }}
+                      />
+                    </Stack>
+                    <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+                  </ThemeProvider>
+                </PaperProvider>
+              </AppDataProvider>
             </CobrosProvider>
           </PedidosProvider>
         </VentasProvider>

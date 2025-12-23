@@ -1,20 +1,26 @@
+import { 
+  ProfileAvatar, 
+  ProfileFormInput, 
+  PhotoOptionsModal,
+  PasswordInput,
+  PasswordRequirements,
+  SecurityCard,
+  AccountInfoCard 
+} from '@/components/perfil';
 import { SafeHeader, ScreenContainer } from '@/components/shared/ScreenContainer';
 import { useCustomAlert } from '@/components/shared/CustomAlert';
 import { useAuth } from '@/contexts/AuthContext';
 import { authService } from '@/services/authService';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Modal,
   Platform,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -287,67 +293,15 @@ export default function PerfilScreen() {
       >
           {/* Avatar y Info Básica */}
           <View className="items-center mb-6">
-            <TouchableOpacity
+            <ProfileAvatar
+              user={user}
               onPress={() => setShowPhotoOptions(true)}
-              activeOpacity={0.8}
-              disabled={uploadingPhoto}
-            >
-              <View 
-                className="w-28 h-28 rounded-3xl justify-center items-center mb-4 overflow-hidden"
-                style={{ 
-                  shadowColor: '#402612',
-                  shadowOffset: { width: 0, height: 0 },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 16,
-                  elevation: 8,
-                }}
-              >
-                {user.photo ? (
-                  <>
-                    <Image
-                      source={{ uri: user.photo }}
-                      className="w-full h-full"
-                      resizeMode="cover"
-                    />
-                    {uploadingPhoto && (
-                      <View className="absolute inset-0 bg-black/50 justify-center items-center">
-                        <ActivityIndicator size="large" color="#FFFFFF" />
-                      </View>
-                    )}
-                  </>
-                ) : (
-                  <LinearGradient
-                    colors={['#402612', '#8B5A3C']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    className="w-full h-full justify-center items-center"
-                  >
-                    {uploadingPhoto ? (
-                      <ActivityIndicator size="large" color="#FFFFFF" />
-                    ) : (
-                      <Ionicons name="person" size={50} color="#FFFFFF" />
-                    )}
-                  </LinearGradient>
-                )}
-              </View>
-              
-              {/* Botón de cámara */}
-              <View 
-                className="absolute bottom-2 right-0 bg-[#402612] rounded-full p-2"
-                style={{
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.25,
-                  shadowRadius: 4,
-                  elevation: 5,
-                }}
-              >
-                <Ionicons name="camera" size={16} color="#F6EBD7" />
-              </View>
-            </TouchableOpacity>
+              uploading={uploadingPhoto}
+            />
             
             <Text className="text-sm font-poppins-semibold text-[#8B5A3C]">
               @{user.nombreusuario}
+
             </Text>
             <View 
               className="px-4 py-1 rounded-full mt-2"
@@ -371,75 +325,42 @@ export default function PerfilScreen() {
               Información Personal
             </Text>
 
-            {/* Primer Nombre */}
-            <View className="mb-4">
-              <Text className="text-sm font-poppins-semibold text-[#8B5A3C] mb-2">
-                Primer Nombre *
-              </Text>
-              <TextInput
-                value={formData.primernombre}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, primernombre: text }))}
-                placeholder="Tu primer nombre"
-                placeholderTextColor="#8B5A3C80"
-                editable={editMode}
-                className={`bg-[#F6EBD7] border rounded-xl px-4 py-3 font-poppins-regular text-[#402612] ${
-                  editMode ? 'border-[#8B5A3C]' : 'border-transparent'
-                }`}
-              />
-            </View>
+            <ProfileFormInput
+              label="Primer Nombre"
+              value={formData.primernombre}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, primernombre: text }))}
+              placeholder="Tu primer nombre"
+              editable={editMode}
+              required
+            />
 
-            {/* Apellido Paterno */}
-            <View className="mb-4">
-              <Text className="text-sm font-poppins-semibold text-[#8B5A3C] mb-2">
-                Apellido Paterno *
-              </Text>
-              <TextInput
-                value={formData.apellidopaterno}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, apellidopaterno: text }))}
-                placeholder="Tu apellido paterno"
-                placeholderTextColor="#8B5A3C80"
-                editable={editMode}
-                className={`bg-[#F6EBD7] border rounded-xl px-4 py-3 font-poppins-regular text-[#402612] ${
-                  editMode ? 'border-[#8B5A3C]' : 'border-transparent'
-                }`}
-              />
-            </View>
+            <ProfileFormInput
+              label="Apellido Paterno"
+              value={formData.apellidopaterno}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, apellidopaterno: text }))}
+              placeholder="Tu apellido paterno"
+              editable={editMode}
+              required
+            />
 
-            {/* Apellido Materno */}
-            <View className="mb-4">
-              <Text className="text-sm font-poppins-semibold text-[#8B5A3C] mb-2">
-                Apellido Materno
-              </Text>
-              <TextInput
-                value={formData.apellidomaterno}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, apellidomaterno: text }))}
-                placeholder="Tu apellido materno (opcional)"
-                placeholderTextColor="#8B5A3C80"
-                editable={editMode}
-                className={`bg-[#F6EBD7] border rounded-xl px-4 py-3 font-poppins-regular text-[#402612] ${
-                  editMode ? 'border-[#8B5A3C]' : 'border-transparent'
-                }`}
-              />
-            </View>
+            <ProfileFormInput
+              label="Apellido Materno"
+              value={formData.apellidomaterno}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, apellidomaterno: text }))}
+              placeholder="Tu apellido materno (opcional)"
+              editable={editMode}
+            />
 
-            {/* Email */}
-            <View className="mb-4">
-              <Text className="text-sm font-poppins-semibold text-[#8B5A3C] mb-2">
-                Email
-              </Text>
-              <TextInput
-                value={formData.email}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, email: text }))}
-                placeholder="tu@email.com (opcional)"
-                placeholderTextColor="#8B5A3C80"
-                editable={editMode}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                className={`bg-[#F6EBD7] border rounded-xl px-4 py-3 font-poppins-regular text-[#402612] ${
-                  editMode ? 'border-[#8B5A3C]' : 'border-transparent'
-                }`}
-              />
-            </View>
+            <ProfileFormInput
+              label="Email"
+              value={formData.email}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, email: text }))}
+              placeholder="tu@email.com (opcional)"
+              editable={editMode}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+
 
             {/* Botones de acción */}
             {editMode && (
@@ -474,191 +395,43 @@ export default function PerfilScreen() {
           </View>
 
           {/* Seguridad */}
-          <View className="bg-white rounded-2xl p-5 mb-4" style={{
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.08,
-            shadowRadius: 6,
-            elevation: 2,
-          }}>
-            <Text className="text-base font-poppins-bold text-[#402612] mb-4">
-              Seguridad
-            </Text>
-
-            <TouchableOpacity
-              onPress={() => setShowPasswordModal(true)}
-              className="flex-row items-center justify-between bg-[#F6EBD7] rounded-xl px-4 py-4"
-            >
-              <View className="flex-row items-center">
-                <View className="w-10 h-10 rounded-xl justify-center items-center mr-3" style={{ backgroundColor: '#8B5A3C20' }}>
-                  <Ionicons name="lock-closed" size={20} color="#8B5A3C" />
-                </View>
-                <View>
-                  <Text className="font-poppins-semibold text-[#402612]">Cambiar Contraseña</Text>
-                  <Text className="text-xs font-poppins-regular text-[#8B5A3C]">
-                    Actualiza tu contraseña de acceso
-                  </Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#8B5A3C" />
-            </TouchableOpacity>
-          </View>
+          <SecurityCard onChangePassword={() => setShowPasswordModal(true)} />
 
           {/* Info de Cuenta */}
-          <View className="bg-white rounded-2xl p-5 mb-6" style={{
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.08,
-            shadowRadius: 6,
-            elevation: 2,
-          }}>
-            <Text className="text-base font-poppins-bold text-[#402612] mb-4">
-              Información de Cuenta
-            </Text>
-
-            <View className="flex-row justify-between items-center py-2 border-b border-gray-100">
-              <Text className="font-poppins-regular text-[#8B5A3C]">Usuario</Text>
-              <Text className="font-poppins-semibold text-[#402612]">@{user.nombreusuario}</Text>
-            </View>
-            
-            <View className="flex-row justify-between items-center py-2 border-b border-gray-100">
-              <Text className="font-poppins-regular text-[#8B5A3C]">Rol</Text>
-              <Text className="font-poppins-semibold text-[#402612] capitalize">{user.rol}</Text>
-            </View>
-
-            <View className="flex-row justify-between items-center py-2">
-              <Text className="font-poppins-regular text-[#8B5A3C]">ID de Usuario</Text>
-              <Text className="font-poppins-semibold text-[#402612]">#{user.idusuario}</Text>
-            </View>
-          </View>
+          <AccountInfoCard user={user} />
       </KeyboardAwareScrollView>
 
       {/* Modal de Opciones de Foto */}
-      <Modal
+      <PhotoOptionsModal
         visible={showPhotoOptions}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setShowPhotoOptions(false)}
-      >
-        <View className="flex-1 bg-black/50 justify-end">
-          <View className="bg-[#F6EBD7] rounded-t-3xl pb-8">
-            {/* Header del Modal */}
-            <View className="items-center py-4 border-b border-gray-200">
-              <View className="w-12 h-1 bg-gray-300 rounded-full mb-3" />
-              <Text className="text-lg font-poppins-bold text-[#402612]">
-                Cambiar Foto de Perfil
-              </Text>
-            </View>
+        onClose={() => setShowPhotoOptions(false)}
+        onTakePhoto={handleTakePhoto}
+        onPickImage={handlePickImage}
+        onDeletePhoto={() => {
+          setShowPhotoOptions(false);
+          Alert.alert(
+            'Eliminar Foto',
+            '¿Estás seguro de eliminar tu foto de perfil?',
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              {
+                text: 'Eliminar',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    await updateUser({ photo: '' });
+                    showSuccess('Éxito', 'Foto eliminada');
+                  } catch (error) {
+                    showError('Error', 'No se pudo eliminar la foto');
+                  }
+                },
+              },
+            ]
+          );
+        }}
+        hasPhoto={!!user.photo}
+      />
 
-            <View className="p-4 gap-3">
-              {/* Tomar Foto */}
-              <TouchableOpacity
-                onPress={handleTakePhoto}
-                className="flex-row items-center bg-white rounded-xl px-4 py-4"
-                style={{
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.08,
-                  shadowRadius: 6,
-                  elevation: 2,
-                }}
-              >
-                <View className="w-12 h-12 rounded-xl justify-center items-center mr-3" style={{ backgroundColor: '#3b82f620' }}>
-                  <Ionicons name="camera" size={24} color="#3b82f6" />
-                </View>
-                <View className="flex-1">
-                  <Text className="font-poppins-semibold text-[#402612]">Tomar Foto</Text>
-                  <Text className="text-xs font-poppins-regular text-[#8B5A3C]">
-                    Usar la cámara
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#8B5A3C" />
-              </TouchableOpacity>
-
-              {/* Seleccionar de Galería */}
-              <TouchableOpacity
-                onPress={handlePickImage}
-                className="flex-row items-center bg-white rounded-xl px-4 py-4"
-                style={{
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.08,
-                  shadowRadius: 6,
-                  elevation: 2,
-                }}
-              >
-                <View className="w-12 h-12 rounded-xl justify-center items-center mr-3" style={{ backgroundColor: '#00D98E20' }}>
-                  <Ionicons name="images" size={24} color="#00D98E" />
-                </View>
-                <View className="flex-1">
-                  <Text className="font-poppins-semibold text-[#402612]">Seleccionar de Galería</Text>
-                  <Text className="text-xs font-poppins-regular text-[#8B5A3C]">
-                    Elegir una foto existente
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#8B5A3C" />
-              </TouchableOpacity>
-
-              {/* Eliminar Foto (solo si tiene foto) */}
-              {user.photo && (
-                <TouchableOpacity
-                  onPress={() => {
-                    setShowPhotoOptions(false);
-                    Alert.alert(
-                      'Eliminar Foto',
-                      '¿Estás seguro de eliminar tu foto de perfil?',
-                      [
-                        { text: 'Cancelar', style: 'cancel' },
-                        {
-                          text: 'Eliminar',
-                          style: 'destructive',
-                          onPress: async () => {
-                            try {
-                              await updateUser({ photo: '' });
-                              showSuccess('Éxito', 'Foto eliminada');
-                            } catch (error) {
-                              showError('Error', 'No se pudo eliminar la foto');
-                            }
-                          },
-                        },
-                      ]
-                    );
-                  }}
-                  className="flex-row items-center bg-white rounded-xl px-4 py-4"
-                  style={{
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 1 },
-                    shadowOpacity: 0.08,
-                    shadowRadius: 6,
-                    elevation: 2,
-                  }}
-                >
-                  <View className="w-12 h-12 rounded-xl justify-center items-center mr-3" style={{ backgroundColor: '#DC262620' }}>
-                    <Ionicons name="trash" size={24} color="#DC2626" />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="font-poppins-semibold text-red-600">Eliminar Foto</Text>
-                    <Text className="text-xs font-poppins-regular text-[#8B5A3C]">
-                      Remover foto actual
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color="#8B5A3C" />
-                </TouchableOpacity>
-              )}
-
-              {/* Cancelar */}
-              <TouchableOpacity
-                onPress={() => setShowPhotoOptions(false)}
-                className="bg-gray-200 rounded-xl py-3 mt-2"
-              >
-                <Text className="text-center font-poppins-semibold text-gray-600">
-                  Cancelar
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       {/* Modal de Cambio de Contraseña */}
       <Modal
@@ -688,89 +461,39 @@ export default function PerfilScreen() {
             </View>
 
             <View className="p-4">
-              {/* Contraseña Actual */}
-              <View className="mb-4">
-                <Text className="text-sm font-poppins-semibold text-[#8B5A3C] mb-2">
-                  Contraseña Actual
-                </Text>
-                <View className="flex-row items-center bg-white border border-[#8B5A3C] rounded-xl px-4">
-                  <TextInput
-                    value={passwordData.currentPassword}
-                    onChangeText={(text) => setPasswordData(prev => ({ ...prev, currentPassword: text }))}
-                    placeholder="Tu contraseña actual"
-                    placeholderTextColor="#8B5A3C80"
-                    secureTextEntry={!showPasswords.current}
-                    className="flex-1 py-3 font-poppins-regular text-[#402612]"
-                  />
-                  <TouchableOpacity onPress={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}>
-                    <Ionicons name={showPasswords.current ? 'eye-off' : 'eye'} size={20} color="#8B5A3C" />
-                  </TouchableOpacity>
-                </View>
-              </View>
+              <PasswordInput
+                label="Contraseña Actual"
+                value={passwordData.currentPassword}
+                onChangeText={(text) => setPasswordData(prev => ({ ...prev, currentPassword: text }))}
+                placeholder="Tu contraseña actual"
+                showPassword={showPasswords.current}
+                onTogglePassword={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
+              />
 
-              {/* Nueva Contraseña */}
-              <View className="mb-4">
-                <Text className="text-sm font-poppins-semibold text-[#8B5A3C] mb-2">
-                  Nueva Contraseña
-                </Text>
-                <View className="flex-row items-center bg-white border border-[#8B5A3C] rounded-xl px-4">
-                  <TextInput
-                    value={passwordData.newPassword}
-                    onChangeText={(text) => setPasswordData(prev => ({ ...prev, newPassword: text }))}
-                    placeholder="Mínimo 6 caracteres"
-                    placeholderTextColor="#8B5A3C80"
-                    secureTextEntry={!showPasswords.new}
-                    className="flex-1 py-3 font-poppins-regular text-[#402612]"
-                  />
-                  <TouchableOpacity onPress={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}>
-                    <Ionicons name={showPasswords.new ? 'eye-off' : 'eye'} size={20} color="#8B5A3C" />
-                  </TouchableOpacity>
-                </View>
-              </View>
+              <PasswordInput
+                label="Nueva Contraseña"
+                value={passwordData.newPassword}
+                onChangeText={(text) => setPasswordData(prev => ({ ...prev, newPassword: text }))}
+                placeholder="Mínimo 6 caracteres"
+                showPassword={showPasswords.new}
+                onTogglePassword={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
+              />
 
-              {/* Confirmar Contraseña */}
               <View className="mb-6">
-                <Text className="text-sm font-poppins-semibold text-[#8B5A3C] mb-2">
-                  Confirmar Nueva Contraseña
-                </Text>
-                <View className="flex-row items-center bg-white border border-[#8B5A3C] rounded-xl px-4">
-                  <TextInput
-                    value={passwordData.confirmPassword}
-                    onChangeText={(text) => setPasswordData(prev => ({ ...prev, confirmPassword: text }))}
-                    placeholder="Repite la nueva contraseña"
-                    placeholderTextColor="#8B5A3C80"
-                    secureTextEntry={!showPasswords.confirm}
-                    className="flex-1 py-3 font-poppins-regular text-[#402612]"
-                  />
-                  <TouchableOpacity onPress={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}>
-                    <Ionicons name={showPasswords.confirm ? 'eye-off' : 'eye'} size={20} color="#8B5A3C" />
-                  </TouchableOpacity>
-                </View>
+                <PasswordInput
+                  label="Confirmar Nueva Contraseña"
+                  value={passwordData.confirmPassword}
+                  onChangeText={(text) => setPasswordData(prev => ({ ...prev, confirmPassword: text }))}
+                  placeholder="Repite la nueva contraseña"
+                  showPassword={showPasswords.confirm}
+                  onTogglePassword={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
+                />
               </View>
 
-              {/* Indicador de requisitos */}
-              <View className="bg-[#402612]/10 rounded-xl p-3">
-                <View className="flex-row items-center mb-1">
-                  <Ionicons 
-                    name={passwordData.newPassword.length >= 6 ? 'checkmark-circle' : 'ellipse-outline'} 
-                    size={16} 
-                    color={passwordData.newPassword.length >= 6 ? '#00D98E' : '#8B5A3C'} 
-                  />
-                  <Text className="ml-2 text-xs font-poppins-regular text-[#402612]">
-                    Mínimo 6 caracteres
-                  </Text>
-                </View>
-                <View className="flex-row items-center">
-                  <Ionicons 
-                    name={passwordData.newPassword === passwordData.confirmPassword && passwordData.newPassword !== '' ? 'checkmark-circle' : 'ellipse-outline'} 
-                    size={16} 
-                    color={passwordData.newPassword === passwordData.confirmPassword && passwordData.newPassword !== '' ? '#00D98E' : '#8B5A3C'} 
-                  />
-                  <Text className="ml-2 text-xs font-poppins-regular text-[#402612]">
-                    Las contraseñas coinciden
-                  </Text>
-                </View>
-              </View>
+              <PasswordRequirements
+                newPassword={passwordData.newPassword}
+                confirmPassword={passwordData.confirmPassword}
+              />
             </View>
           </View>
         </View>

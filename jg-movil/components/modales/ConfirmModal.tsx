@@ -14,6 +14,8 @@ interface ConfirmModalProps {
     total: number;
   };
   loading?: boolean;
+  confirmText?: string;
+  confirmColor?: string;
 }
 
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -23,7 +25,9 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   title,
   message,
   data,
-  loading = false
+  loading = false,
+  confirmText = 'Confirmar',
+  confirmColor,
 }) => {
   return (
     <Modal
@@ -51,7 +55,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
                 <View className="flex-row justify-between mb-2">
                   <Text className="font-poppins-regular text-[#8B5A3C]">Cliente:</Text>
                   <Text className="font-poppins-semibold text-[#402612] flex-1 text-right" numberOfLines={1}>
-                    {data.cliente || 'Cliente General'}
+                    {data.cliente || 'Sin Nombre'}
                   </Text>
                 </View>
                 <View className="flex-row justify-between mb-2">
@@ -89,10 +93,11 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
                 <TouchableOpacity
                   onPress={onConfirm}
-                  className="flex-1 bg-[#402612] rounded-xl py-3"
+                  className="flex-1 rounded-xl py-3"
+                  style={{ backgroundColor: confirmColor || '#402612' }}
                 >
                   <Text className="text-center text-[#F6EBD7] font-poppins-semibold">
-                    Confirmar
+                    {confirmText}
                   </Text>
                 </TouchableOpacity>
               </View>

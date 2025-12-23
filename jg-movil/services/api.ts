@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 import { API_URL, STORAGE_KEYS } from '../config/supabase';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
@@ -8,6 +9,7 @@ interface RequestOptions {
   body?: any;
   headers?: Record<string, string>;
   isFormData?: boolean;
+  timeout?: number;
 }
 
 interface ApiResponse<T = any> {
@@ -15,6 +17,7 @@ interface ApiResponse<T = any> {
   data?: T;
   message?: string;
   error?: string;
+  errorType?: 'NO_INTERNET' | 'SERVER_UNREACHABLE' | 'INVALID_CREDENTIALS' | 'SESSION_EXPIRED' | 'UNKNOWN';
   pagination?: {
     page: number;
     limit: number;
@@ -97,7 +100,21 @@ class ApiService {
     endpoint: string,
     options: RequestOptions = {}
   ): Promise<ApiResponse<T>> {
-    const { method = 'GET', body, headers = {}, isFormData = false } = options;
+    const { method = 'GET', body, headers = {}, isFormData = false, timeout = 30000 } = options;
+
+    // Verificar conexión a internet primero
+    try {
+      const netState = await NetInfo.fetch();
+      if (!netState.isConnected || netState.isInternetReachable === false) {
+        return {
+          success: false,
+          error: 'No hay conexión a internet. Verifica tu conexión e intenta nuevamente.',
+          errorType: 'NO_INTERNET',
+        };
+      }
+    } catch {
+      // Si falla verificar, continuar e intentar la petición
+    }
 
     const token = await this.getToken();
 
@@ -122,36 +139,93 @@ class ApiService {
       config.body = isFormData ? body : JSON.stringify(body);
     }
 
+    // Crear timeout con AbortController
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    config.signal = controller.signal;
+
     try {
       let response = await fetch(`${this.baseUrl}${endpoint}`, config);
+      clearTimeout(timeoutId);
 
-      // Si el token expiró, intentar refrescar
+      const data = await response.json();
+      
+      // Si es 401, determinar si es credenciales incorrectas o sesión expirada
       if (response.status === 401) {
+        const errorLower = (data.error || '').toLowerCase();
+        
+        // Verificar si es un error de credenciales (login fallido)
+        if (
+          errorLower.includes('credenciales') || 
+          errorLower.includes('contraseña') || 
+          errorLower.includes('usuario') ||
+          errorLower.includes('incorrectos') ||
+          endpoint.includes('/auth/login')
+        ) {
+          return {
+            ...data,
+            error: 'El nombre de usuario o la contraseña son incorrectos.',
+            errorType: 'INVALID_CREDENTIALS',
+          };
+        }
+        
+        // Si no es login, intentar refrescar token (sesión expirada)
         const refreshed = await this.refreshTokens();
         if (refreshed) {
           const newToken = await this.getToken();
           if (newToken) {
             requestHeaders['Authorization'] = `Bearer ${newToken}`;
             config.headers = requestHeaders;
-            response = await fetch(`${this.baseUrl}${endpoint}`, config);
+            const retryResponse = await fetch(`${this.baseUrl}${endpoint}`, config);
+            return await retryResponse.json();
           }
-        } else {
-          // Token no se pudo refrescar, limpiar sesión
-          await this.clearTokens();
-          return {
-            success: false,
-            error: 'Sesión expirada. Por favor, inicia sesión nuevamente.',
-          };
         }
+        
+        // Token no se pudo refrescar, limpiar sesión
+        await this.clearTokens();
+        return {
+          success: false,
+          error: 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.',
+          errorType: 'SESSION_EXPIRED',
+        };
       }
 
-      const data = await response.json();
       return data;
-    } catch (error) {
+    } catch (error: any) {
+      clearTimeout(timeoutId);
       console.error('API Error:', error);
+      
+      // Error de timeout o abort
+      if (error.name === 'AbortError') {
+        return {
+          success: false,
+          error: 'El servidor no responde. El servicio puede estar temporalmente fuera de línea.',
+          errorType: 'SERVER_UNREACHABLE',
+        };
+      }
+
+      // Error de red
+      if (error.message?.includes('Network') || error.message?.includes('fetch')) {
+        // Re-verificar internet
+        const netState = await NetInfo.fetch();
+        if (!netState.isConnected || netState.isInternetReachable === false) {
+          return {
+            success: false,
+            error: 'No hay conexión a internet. Verifica tu conexión e intenta nuevamente.',
+            errorType: 'NO_INTERNET',
+          };
+        }
+        return {
+          success: false,
+          error: 'No se pudo conectar con el servidor. El servicio puede estar temporalmente fuera de línea.',
+          errorType: 'SERVER_UNREACHABLE',
+        };
+      }
+
       return {
         success: false,
-        error: 'Error de conexión. Verifica tu internet.',
+        error: 'Ocurrió un error inesperado. Intenta nuevamente.',
+        errorType: 'UNKNOWN',
       };
     }
   }

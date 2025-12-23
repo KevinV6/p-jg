@@ -52,8 +52,11 @@
     },
     "extra": {
       "router": {},
+      "apiUrl": "http://localhost:3000/api",
+      "supabaseUrl": "",
+      "supabaseAnonKey": "",
       "eas": {
-        "projectId": "e45073ce-99d0-475f-bd6b-ae863c52970a"
+        "projectId": "24fac00f-2d7c-4412-8499-5f297947e822"
       }
     }
   }

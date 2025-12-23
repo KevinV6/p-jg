@@ -11,10 +11,11 @@ import { ScreenContainer } from '@/components/shared/ScreenContainer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCobros } from '@/contexts/CobrosContext';
 import { useVentas } from '@/contexts/VentasContext';
+import { useAppData } from '@/contexts/AppDataContext';
 import { Venta, Pedido } from '@/types';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { RefreshControl, ScrollView, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, View, Text } from 'react-native';
 
 // Datos mock de pedidos para mostrar en la UI (sin conexión a BD)
 const mockPedidosPreview: Pedido[] = [
@@ -81,6 +82,7 @@ export default function HomeScreen() {
   const { isAuthenticated } = useAuth();
   const { getVentasRecientes, getTotalVentas } = useVentas();
   const { getCobrosPendientes } = useCobros();
+  const { isDataLoaded, isLoadingData, refreshAllData } = useAppData();
   const [refreshing, setRefreshing] = useState(false);
 
   // Usar datos mock para pedidos (solo visual, sin BD)
@@ -96,10 +98,26 @@ export default function HomeScreen() {
   const cobrosPendientes = getCobrosPendientes();
   const totalVentas = getTotalVentas();
 
-  const onRefresh = React.useCallback(() => {
+  const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
-  }, []);
+    await refreshAllData();
+    setRefreshing(false);
+  }, [refreshAllData]);
+
+  // Mostrar indicador de carga inicial
+  if (!isDataLoaded && isLoadingData) {
+    return (
+      <ScreenContainer safeTop={false} hasTabBar={true}>
+        <AppHeader title="Inicio" onNotificationPress={() => {}} />
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#402612" />
+          <Text className="mt-4 text-[#8B5A3C] font-poppins-medium">
+            Cargando datos...
+          </Text>
+        </View>
+      </ScreenContainer>
+    );
+  }
 
   return (
     <ScreenContainer safeTop={false} hasTabBar={true}>

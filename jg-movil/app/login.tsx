@@ -1,25 +1,22 @@
+import { ErrorModal, InputField, LoadingModal, SwitchAuthLink } from '@/components/auth';
 import { GradientButton } from '@/components/shared/GradientButton';
 import { ScreenContainer } from '@/components/shared/ScreenContainer';
 import { useAuth } from '@/contexts/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Redirect } from 'expo-router';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
   Image,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   ScrollView,
   Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login, isLoading: authLoading, isAuthenticated, error, clearError } = useAuth();
+  const { login, isLoading: authLoading, isAuthenticated, error, errorTitle, clearError } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -28,17 +25,29 @@ export default function LoginScreen() {
   // Estado para modal de error personalizado
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [errorTitle, setErrorTitle] = useState('Error');
+  const [modalErrorTitle, setModalErrorTitle] = useState('Error');
+  
+  // Ref para evitar mostrar el mismo error dos veces
+  const lastErrorRef = useRef<string | null>(null);
 
   // Mostrar error del contexto
   useEffect(() => {
-    if (error) {
-      setErrorTitle('Error de autenticación');
+    if (error && error !== lastErrorRef.current) {
+      lastErrorRef.current = error;
+      setModalErrorTitle(errorTitle || 'Error');
       setErrorMessage(error);
       setShowErrorModal(true);
       clearError();
     }
-  }, [error]);
+  }, [error, errorTitle]);
+
+  // Limpiar ref cuando se cierra el modal
+  const handleCloseErrorModal = () => {
+    setShowErrorModal(false);
+    setTimeout(() => {
+      lastErrorRef.current = null;
+    }, 500);
+  };
 
   // Si ya está autenticado, redirigir a tabs
   if (isAuthenticated && !authLoading) {
@@ -56,7 +65,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!username || !password) {
-      setErrorTitle('Campos incompletos');
+      setModalErrorTitle('Campos incompletos');
       setErrorMessage('Por favor ingrese usuario y contraseña');
       setShowErrorModal(true);
       return;
@@ -71,10 +80,6 @@ export default function LoginScreen() {
     }
   };
 
-  const handleRegister = () => {
-    router.push('/register');
-  };
-
   return (
     <ScreenContainer>
       <KeyboardAvoidingView
@@ -85,7 +90,6 @@ export default function LoginScreen() {
           contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 16 }}
           keyboardShouldPersistTaps="handled"
         >
-
           {/* Header */}
           <View className="items-center mb-8">
             <Image
@@ -100,56 +104,22 @@ export default function LoginScreen() {
 
           {/* Form fields */}
           <View className="gap-5">
-            {/* Usuario field */}
-            <View>
-              <View
-                className="bg-white rounded-xl flex-row items-center border border-[#8B5A3C] px-4 py-3"
-              >
-                <Ionicons
-                  name="person-outline"
-                  size={20}
-                  color="#8B5A3C"
-                />
-                <TextInput
-                  className="flex-1 ml-3 text-base font-poppins-regular text-[#402612]"
-                  placeholder="Ingresa tu usuario"
-                  placeholderTextColor="#8B5A3C"
-                  value={username}
-                  onChangeText={setUsername}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-            </View>
+            <InputField
+              icon="person-outline"
+              placeholder="Ingresa tu usuario"
+              value={username}
+              onChangeText={setUsername}
+            />
 
-            {/* Password Field estilo Gralis */}
-            <View>
-              <View
-                className="bg-white rounded-xl flex-row items-center border border-[#8B5A3C] px-4 py-3"
-              >
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={20}
-                  color="#8B5A3C"
-                />
-                <TextInput
-                  className="flex-1 ml-3 text-base font-poppins-regular text-[#402612]"
-                  placeholder="Ingresa tu contraseña"
-                  placeholderTextColor="#8B5A3C"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Ionicons
-                    name={showPassword ? "eye-outline" : "eye-off-outline"}
-                    size={20}
-                    color="#8B5A3C"
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
+            <InputField
+              icon="lock-closed-outline"
+              placeholder="Ingresa tu contraseña"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={true}
+              showPassword={showPassword}
+              onTogglePassword={() => setShowPassword(!showPassword)}
+            />
 
             {/* Botón de Login */}
             <GradientButton
@@ -162,92 +132,28 @@ export default function LoginScreen() {
           </View>
 
           {/* Switch to Sign Up Link */}
-          <View className="flex-row justify-center mt-6 mb-4">
-            <Text className="text-gray-600 font-poppins-medium">
-              ¿No tienes una cuenta?{' '}
-            </Text>
-            <TouchableOpacity onPress={handleRegister}>
-              <Text className="text-[#402612] font-poppins-semibold">
-                Regístrate
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <SwitchAuthLink
+            question="¿No tienes una cuenta?"
+            actionText="Regístrate"
+            onPress={() => router.push('/register')}
+          />
         </ScrollView>
       </KeyboardAvoidingView>
 
       {/* Modal de Carga */}
-      <Modal
+      <LoadingModal
         visible={isSubmitting}
-        transparent={true}
-        animationType="fade"
-        statusBarTranslucent
-      >
-        <View className="flex-1 bg-black/50 justify-center items-center">
-          <View className="bg-white rounded-3xl p-8 items-center" style={{
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: 8,
-          }}>
-            <ActivityIndicator size="large" color="#402612" />
-            <Text className="text-lg font-poppins-semibold text-[#402612] mt-4">
-              Iniciando sesión...
-            </Text>
-            <Text className="text-sm font-poppins text-gray-600 mt-2">
-              Por favor espera
-            </Text>
-          </View>
-        </View>
-      </Modal>
+        message="Iniciando sesión..."
+        submessage="Por favor espera"
+      />
 
-      {/* Modal de Error estilo Gralis */}
-      <Modal
+      {/* Modal de Error */}
+      <ErrorModal
         visible={showErrorModal}
-        transparent={true}
-        animationType="fade"
-        statusBarTranslucent
-        onRequestClose={() => setShowErrorModal(false)}
-      >
-        <View className="flex-1 bg-black/40 justify-center items-center px-6">
-          <View 
-            className="bg-white rounded-3xl p-6 w-full max-w-sm"
-            style={{
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 8,
-            }}
-          >
-            {/* Icono de Error */}
-            <View className="items-center mb-4">
-              <View className="bg-red-100 rounded-full p-4 mb-3">
-                <Ionicons name="close-circle" size={48} color="#EF4444" />
-              </View>
-              <Text className="text-xl font-poppins-bold text-gray-900 text-center">
-                {errorTitle}
-              </Text>
-            </View>
-
-            {/* Mensaje de Error */}
-            <Text className="text-base font-poppins text-gray-600 text-center mb-6">
-              {errorMessage}
-            </Text>
-
-            {/* Botón de Cerrar */}
-            <TouchableOpacity
-              onPress={() => setShowErrorModal(false)}
-              className="bg-[#402612] rounded-2xl py-4"
-              activeOpacity={0.8}
-            >
-              <Text className="text-white text-center font-poppins-bold text-base">
-                Entendido
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        title={modalErrorTitle}
+        message={errorMessage}
+        onClose={handleCloseErrorModal}
+      />
     </ScreenContainer>
   );
 }

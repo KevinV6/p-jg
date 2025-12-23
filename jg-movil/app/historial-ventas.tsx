@@ -65,7 +65,7 @@ export default function HistorialVentasScreen() {
             Venta #{item.idventa.toString().padStart(6, '0')}
           </Text>
           <Text className="text-sm font-poppins-regular text-[#8B5A3C]">
-            {item.cliente?.nombrecliente || 'Cliente General'}
+            {item.cliente?.nombrecliente || 'Sin Nombre'}
           </Text>
         </View>
         <View className="items-end">

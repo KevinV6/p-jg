@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import type { Usuario } from '@/types/types';
 import { authService, RegisterData, LoginCredentials } from '@/services/authService';
 
@@ -7,6 +7,7 @@ interface AuthContextData {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  errorTitle: string | null;
   login: (credentials: LoginCredentials) => Promise<boolean>;
   register: (userData: RegisterData) => Promise<boolean>;
   logout: () => Promise<void>;
@@ -20,6 +21,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<Usuario | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorTitle, setErrorTitle] = useState<string | null>(null);
+  
+  // Ref para evitar errores duplicados
+  const errorShownRef = useRef(false);
 
   useEffect(() => {
     checkAuth();
@@ -62,10 +67,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const setAuthError = (title: string, message: string) => {
+    // Evitar mostrar el mismo error dos veces
+    if (errorShownRef.current) return;
+    errorShownRef.current = true;
+    
+    setErrorTitle(title);
+    setError(message);
+    
+    // Reset después de un breve delay
+    setTimeout(() => {
+      errorShownRef.current = false;
+    }, 100);
+  };
+
   const login = async (credentials: LoginCredentials): Promise<boolean> => {
     try {
       setIsLoading(true);
       setError(null);
+      setErrorTitle(null);
+      errorShownRef.current = false;
       
       const response = await authService.login(credentials);
       
@@ -74,11 +95,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return true;
       }
       
-      setError(response.error || 'Error al iniciar sesión');
+      // Mapear errores según el tipo
+      const errorType = (response as any).errorType;
+      switch (errorType) {
+        case 'NO_INTERNET':
+          setAuthError('Sin conexión', response.error || 'No hay conexión a internet.');
+          break;
+        case 'SERVER_UNREACHABLE':
+          setAuthError('Servidor no disponible', response.error || 'No se pudo conectar con el servidor.');
+          break;
+        case 'INVALID_CREDENTIALS':
+          setAuthError('Credenciales incorrectas', 'El nombre de usuario o la contraseña son incorrectos.');
+          break;
+        case 'SESSION_EXPIRED':
+          setAuthError('Sesión expirada', response.error || 'Tu sesión ha expirado.');
+          break;
+        default:
+          setAuthError('Error de autenticación', response.error || 'Error al iniciar sesión');
+      }
+      
       return false;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error de conexión';
-      setError(message);
+      setAuthError('Error', message);
       return false;
     } finally {
       setIsLoading(false);
@@ -89,6 +128,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setIsLoading(true);
       setError(null);
+      setErrorTitle(null);
+      errorShownRef.current = false;
       
       const response = await authService.register(userData);
       
@@ -97,11 +138,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return true;
       }
       
-      setError(response.error || 'Error al registrar usuario');
+      // Mapear errores según el tipo
+      const errorType = (response as any).errorType;
+      switch (errorType) {
+        case 'NO_INTERNET':
+          setAuthError('Sin conexión', response.error || 'No hay conexión a internet.');
+          break;
+        case 'SERVER_UNREACHABLE':
+          setAuthError('Servidor no disponible', response.error || 'No se pudo conectar con el servidor.');
+          break;
+        default:
+          setAuthError('Error de registro', response.error || 'Error al registrar usuario');
+      }
+      
       return false;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error de conexión';
-      setError(message);
+      setAuthError('Error', message);
       return false;
     } finally {
       setIsLoading(false);
@@ -124,6 +177,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setIsLoading(true);
       setError(null);
+      setErrorTitle(null);
       
       const response = await authService.updateProfile(userData);
       
@@ -132,18 +186,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return true;
       }
       
-      setError(response.error || 'Error al actualizar perfil');
+      setAuthError('Error', response.error || 'Error al actualizar perfil');
       return false;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error de conexión';
-      setError(message);
+      setAuthError('Error', message);
       return false;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const clearError = () => setError(null);
+  const clearError = () => {
+    setError(null);
+    setErrorTitle(null);
+    errorShownRef.current = false;
+  };
 
   const isAuthenticated = user !== null;
 
@@ -154,6 +212,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isAuthenticated,
         isLoading,
         error,
+        errorTitle,
         login,
         register,
         logout,
