@@ -144,41 +144,20 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
   );
 }
 
-// Logout Button Component
+// Logout Button Component - Ahora usa MenuItem para consistencia
 interface LogoutButtonProps {
   onPress: () => void;
 }
 
 export function LogoutButton({ onPress }: LogoutButtonProps) {
   return (
-    <TouchableOpacity
-      className="flex-row items-center p-5 rounded-2xl bg-white"
-      style={{
-        shadowColor: '#FF0055',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
-        elevation: 3,
-      }}
+    <MenuItem
+      icon="log-out-outline"
+      title="Cerrar Sesión"
+      subtitle="Salir de la aplicación"
       onPress={onPress}
-      activeOpacity={0.8}
-    >
-      <View
-        className="w-14 h-14 rounded-2xl justify-center items-center mr-4"
-        style={{ backgroundColor: '#FF005515' }}
-      >
-        <Ionicons name="log-out-outline" size={26} color="#FF0055" />
-      </View>
-      <View className="flex-1">
-        <Text className="text-base font-poppins-bold text-[#FF0055]">
-          Cerrar Sesión
-        </Text>
-        <Text className="text-sm font-poppins-medium text-[#FF005590] mt-0.5">
-          Salir de la aplicación
-        </Text>
-      </View>
-      <Ionicons name="chevron-forward" size={22} color="#FF0055" />
-    </TouchableOpacity>
+      color="#EF4444"
+    />
   );
 }
 

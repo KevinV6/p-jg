@@ -1,5 +1,6 @@
 import { SafeHeader, ScreenContainer } from '@/components/shared/ScreenContainer';
 import { useCustomAlert } from '@/components/shared/CustomAlert';
+import { ProcessingModal, DeleteConfirmModal } from '@/components/shared/ProcessingModal';
 import {
   ProductoFormHeader,
   ProductImagePicker,
@@ -59,7 +60,7 @@ interface Variante {
 export default function ProductoFormScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { productos, categorias, unidades: unidadesMedida, addProducto, updateProducto, getProductoById, isLoading } = useInventario();
+  const { productos, categorias, unidades: unidadesMedida, addProducto, updateProducto, deleteProducto, getProductoById, isLoading } = useInventario();
   const { showError, showWarning, showSuccess, AlertComponent } = useCustomAlert();
   const isEditing = !!params.id;
 
@@ -68,6 +69,12 @@ export default function ProductoFormScreen() {
   const [categoriaId, setCategoriaId] = useState(1);
   const [imagen, setImagen] = useState('');
   const [imagenOriginal, setImagenOriginal] = useState(''); // Para saber si la imagen cambió
+  
+  // Estados para modales de procesamiento y eliminación
+  const [showProcessing, setShowProcessing] = useState(false);
+  const [processingMessage, setProcessingMessage] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [unidades, setUnidades] = useState<UnidadPrecio[]>([{ unidadid: 1, precio: '' }]);
   const [variantes, setVariantes] = useState<Variante[]>([]);
   const [showVariantes, setShowVariantes] = useState(false);
@@ -292,6 +299,8 @@ export default function ProductoFormScreen() {
     }
 
     setIsSaving(true);
+    setProcessingMessage(isEditing ? 'Actualizando producto...' : 'Creando producto...');
+    setShowProcessing(true);
 
     try {
       let imagenUrl = imagen;
@@ -305,6 +314,7 @@ export default function ProductoFormScreen() {
         });
 
         if (!uploadResult.success || !uploadResult.data?.url) {
+          setShowProcessing(false);
           showError('Error', uploadResult.error || 'No se pudo subir la imagen. Verifica tu conexión e intenta nuevamente.');
           setIsSaving(false);
           return;
@@ -373,17 +383,43 @@ export default function ProductoFormScreen() {
       }
 
       if (success) {
+        setShowProcessing(false);
         showSuccess('Éxito', `Producto ${isEditing ? 'actualizado' : 'creado'} correctamente`, () => {
           router.back();
         });
       } else {
+        setShowProcessing(false);
         showError('Error', 'No se pudo guardar el producto. Intenta nuevamente.');
       }
     } catch (error) {
       console.error('Error guardando producto:', error);
+      setShowProcessing(false);
       showError('Error', 'Ocurrió un error al guardar el producto. Verifica tu conexión e intenta nuevamente.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Función para eliminar producto
+  const handleDeleteProduct = async () => {
+    if (!params.id) return;
+    
+    setIsDeleting(true);
+    try {
+      const success = await deleteProducto(Number(params.id));
+      if (success) {
+        setShowDeleteModal(false);
+        showSuccess('Producto Eliminado', 'El producto ha sido eliminado correctamente', () => {
+          router.back();
+        });
+      } else {
+        showError('Error', 'No se pudo eliminar el producto');
+      }
+    } catch (error) {
+      console.error('Error eliminando producto:', error);
+      showError('Error', 'Ocurrió un error al eliminar el producto');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -707,27 +743,47 @@ export default function ProductoFormScreen() {
         </View>
       </Modal>
 
-      {/* Botón guardar */}
+      {/* Botones de acción */}
       <View className="p-4 bg-white" style={{ elevation: 3, borderTopWidth: 1, borderTopColor: '#E5E5E5' }}>
-        <TouchableOpacity 
-          className={`p-4 rounded-xl items-center flex-row justify-center ${isSaving ? 'bg-[#8B5A3C]' : 'bg-[#402612]'}`}
-          onPress={handleSave} 
-          activeOpacity={0.85}
-          disabled={isSaving}
-        >
-          {isSaving ? (
-            <>
-              <ActivityIndicator color="#F6EBD7" size="small" />
-              <Text className="text-base font-poppins-bold text-[#F6EBD7] ml-2">
-                Guardando...
+        {isEditing && (
+          <View className="flex-row gap-3">
+            {/* Botón Eliminar */}
+            <TouchableOpacity 
+              className="flex-1 p-4 rounded-xl items-center flex-row justify-center bg-red-500"
+              onPress={() => setShowDeleteModal(true)} 
+              activeOpacity={0.85}
+            >
+              <Ionicons name="trash-outline" size={20} color="white" />
+              <Text className="text-base font-poppins-bold text-white ml-2">
+                Eliminar
               </Text>
-            </>
-          ) : (
+            </TouchableOpacity>
+            
+            {/* Botón Actualizar */}
+            <TouchableOpacity 
+              className="flex-[2] p-4 rounded-xl items-center flex-row justify-center bg-[#402612]"
+              onPress={handleSave} 
+              activeOpacity={0.85}
+            >
+              <Ionicons name="checkmark-circle-outline" size={20} color="white" />
+              <Text className="text-base font-poppins-bold text-white ml-2">
+                Actualizar
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        
+        {!isEditing && (
+          <TouchableOpacity 
+            className="p-4 rounded-xl items-center flex-row justify-center bg-[#402612]"
+            onPress={handleSave} 
+            activeOpacity={0.85}
+          >
             <Text className="text-base font-poppins-bold text-white">
-              {isEditing ? 'Actualizar Producto' : 'Guardar Producto'}
+              Guardar Producto
             </Text>
-          )}
-        </TouchableOpacity>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Modal para seleccionar imagen */}
@@ -785,6 +841,24 @@ export default function ProductoFormScreen() {
 
     {/* Custom Alert Component */}
     <AlertComponent />
+
+    {/* Modal de procesamiento */}
+    <ProcessingModal 
+      visible={showProcessing} 
+      message={processingMessage}
+      submessage="Por favor espere..."
+    />
+
+    {/* Modal de confirmación eliminar */}
+    <DeleteConfirmModal
+      visible={showDeleteModal}
+      onClose={() => setShowDeleteModal(false)}
+      onConfirm={handleDeleteProduct}
+      title="Eliminar Producto"
+      message="¿Estás seguro de que deseas eliminar este producto?"
+      itemName={nombre}
+      loading={isDeleting}
+    />
     </ScreenContainer>
   );
 }
