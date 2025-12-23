@@ -2,16 +2,18 @@ import { ComprobanteModal, ConfirmModal } from '@/components/modales';
 import { ScreenContainer } from '@/components/shared/ScreenContainer';
 import { useCustomAlert } from '@/components/shared/CustomAlert';
 import { useVentas } from '@/contexts/VentasContext';
+import { useCobros } from '@/contexts/CobrosContext';
 import { ventaService } from '@/services/ventaService';
 import { Venta } from '@/types';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
 export default function ComprobanteVentaScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const { ventas, getVentaById, loadVentas } = useVentas();
+  const { cobros } = useCobros();
   const { showError, showSuccess, AlertComponent } = useCustomAlert();
   
   const [showModal, setShowModal] = useState(true);
@@ -21,6 +23,28 @@ export default function ComprobanteVentaScreen() {
   // Estado para anulación
   const [showAnularModal, setShowAnularModal] = useState(false);
   const [anulando, setAnulando] = useState(false);
+
+  // Verificar si la venta a crédito tiene un cobro ya pagado
+  // Si el cobro está pagado (estado === 2) o tiene saldo 0, no se puede anular
+  const puedeAnular = useMemo(() => {
+    if (!venta) return false;
+    
+    // Si la venta no es a crédito, siempre se puede anular
+    if (venta.tipo_pago !== 'credito') return true;
+    
+    // Buscar el cobro asociado a esta venta
+    const cobroAsociado = cobros.find(c => c.ventaid === venta.idventa);
+    
+    if (!cobroAsociado) return true; // Si no hay cobro, se puede anular
+    
+    // Si el cobro está pagado (estado === 2) o el saldo es 0, NO se puede anular
+    const saldo = cobroAsociado.saldo ?? (cobroAsociado.total - cobroAsociado.monto_pagado);
+    if (cobroAsociado.estado === 2 || saldo <= 0) {
+      return false;
+    }
+    
+    return true;
+  }, [venta, cobros]);
 
   useEffect(() => {
     const loadVenta = async () => {
@@ -140,7 +164,7 @@ export default function ComprobanteVentaScreen() {
         onButtonPress={handleGoHome}
         tipo="venta"
         showSuccessHeader={false}
-        onAnular={handleAnularRequest}
+        onAnular={puedeAnular ? handleAnularRequest : undefined}
       />
 
       {/* Modal de confirmación anular */}

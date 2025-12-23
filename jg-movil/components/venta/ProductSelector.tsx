@@ -2,7 +2,7 @@ import { useInventario } from '@/contexts/InventarioContext';
 import { OpcionVariante, Producto, ProductoUnidad } from '@/types';
 import { validateDecimalInput, validateQuantityInput } from '@/utils/validation';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
     FlatList,
     Image,
@@ -54,6 +54,17 @@ export default function ProductSelector({
   const [selectedUnidad, setSelectedUnidad] = useState<ProductoUnidad | null>(null);
   const [cantidad, setCantidad] = useState('1');
   const [precioEditado, setPrecioEditado] = useState('');
+  const [searchQuery, setSearchQuery] = useState(''); // Estado para búsqueda de productos
+
+  // Filtrar productos según búsqueda
+  const productosFiltrados = useMemo(() => {
+    if (!searchQuery.trim()) return productos;
+    const query = searchQuery.toLowerCase().trim();
+    return productos.filter(p => 
+      p.nombreproducto.toLowerCase().includes(query) ||
+      p.categoria?.nombrecategoria?.toLowerCase().includes(query)
+    );
+  }, [productos, searchQuery]);
 
   // Actualizar precio cuando cambia la unidad seleccionada
   useEffect(() => {
@@ -65,6 +76,7 @@ export default function ProductSelector({
   const handleSelectProduct = (producto: Producto) => {
     setSelectedProduct(producto);
     setShowProductSelector(false);
+    setSearchQuery(''); // Limpiar búsqueda al seleccionar
 
     // Verificar si tiene variantes
     const tieneVariantes = producto.variantes && producto.variantes.length > 0 && 
@@ -80,6 +92,21 @@ export default function ProductSelector({
         setPrecioEditado(producto.unidades[0].precio.toString());
         setCantidad('1');
       }
+    }
+  };
+
+  // Seleccionar producto sin variante (producto base)
+  const handleSelectProductoBase = () => {
+    if (!selectedProduct) return;
+    
+    setSelectedVariante(null); // Sin variante
+    setShowVariantSelector(false);
+    
+    // Seleccionar la primera unidad de medida automáticamente
+    if (selectedProduct.unidades && selectedProduct.unidades.length > 0) {
+      setSelectedUnidad(selectedProduct.unidades[0]);
+      setPrecioEditado(selectedProduct.unidades[0].precio.toString());
+      setCantidad('1');
     }
   };
 
@@ -436,7 +463,10 @@ export default function ProductSelector({
         visible={showProductSelector}
         animationType="slide"
         transparent
-        onRequestClose={() => setShowProductSelector(false)}
+        onRequestClose={() => {
+          setShowProductSelector(false);
+          setSearchQuery('');
+        }}
       >
         <View className="flex-1 bg-black/50 justify-end">
           <View className="bg-[#F6EBD7] rounded-t-3xl max-h-[80%]">
@@ -444,13 +474,42 @@ export default function ProductSelector({
               <Text className="text-xl font-poppins-bold text-[#F6EBD7]">
                 Seleccionar Producto
               </Text>
-              <TouchableOpacity onPress={() => setShowProductSelector(false)}>
+              <TouchableOpacity onPress={() => {
+                setShowProductSelector(false);
+                setSearchQuery('');
+              }}>
                 <Ionicons name="close" size={28} color="#F6EBD7" />
               </TouchableOpacity>
             </View>
 
+            {/* Buscador de productos */}
+            <View className="px-4 py-3 bg-white border-b border-gray-200">
+              <View className="flex-row items-center bg-[#F6EBD7] rounded-xl px-4 py-2">
+                <Ionicons name="search" size={20} color="#8B5A3C" />
+                <TextInput
+                  className="flex-1 ml-2 text-base font-poppins-regular text-[#402612]"
+                  placeholder="Buscar producto..."
+                  placeholderTextColor="#8B5A3C"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearchQuery('')}>
+                    <Ionicons name="close-circle" size={20} color="#8B5A3C" />
+                  </TouchableOpacity>
+                )}
+              </View>
+              {searchQuery.length > 0 && (
+                <Text className="text-xs font-poppins-regular text-[#8B5A3C] mt-2">
+                  {productosFiltrados.length} producto{productosFiltrados.length !== 1 ? 's' : ''} encontrado{productosFiltrados.length !== 1 ? 's' : ''}
+                </Text>
+              )}
+            </View>
+
             <FlatList
-              data={productos}
+              data={productosFiltrados}
               keyExtractor={(item) => item.idproducto.toString()}
               renderItem={({ item }) => (
                 <TouchableOpacity
@@ -500,6 +559,34 @@ export default function ProductSelector({
 
             {selectedProduct?.variantes && selectedProduct.variantes.length > 0 && (
               <FlatList
+                ListHeaderComponent={() => (
+                  /* Opción para seleccionar producto sin variante */
+                  <TouchableOpacity
+                    onPress={handleSelectProductoBase}
+                    className="bg-[#402612]/10 mx-4 my-2 rounded-xl p-4 flex-row items-center justify-between border-2 border-dashed border-[#402612]"
+                  >
+                    {selectedProduct.imagen && (
+                      <Image
+                        source={{ uri: selectedProduct.imagen }}
+                        className="w-12 h-12 rounded-lg mr-3"
+                      />
+                    )}
+                    <View className="flex-1">
+                      <Text className="text-base font-poppins-bold text-[#402612]">
+                        Producto Base
+                      </Text>
+                      <Text className="text-xs font-poppins-regular text-[#8B5A3C]">
+                        {selectedProduct.nombreproducto} - Sin variante
+                      </Text>
+                      {selectedProduct.unidades && selectedProduct.unidades[0] && (
+                        <Text className="text-sm font-poppins-semibold text-[#8B5A3C] mt-1">
+                          Bs. {selectedProduct.unidades[0].precio.toFixed(2)}
+                        </Text>
+                      )}
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#402612" />
+                  </TouchableOpacity>
+                )}
                 data={selectedProduct.variantes.flatMap(v => v.opciones || [])}
                 keyExtractor={(item) => item.idopcionvariante.toString()}
                 renderItem={({ item }) => (

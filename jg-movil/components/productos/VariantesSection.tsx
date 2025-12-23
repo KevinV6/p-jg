@@ -85,7 +85,8 @@ export default function VariantesSection({
   };
 
   const removeVariante = (index: number) => {
-    setVariantes(variantes.filter((_, i) => i !== index));
+    const newVariantes = variantes.filter((_, i) => i !== index);
+    setVariantes([...newVariantes]); // Crear nueva referencia para asegurar re-render
   };
 
   const updateVarianteNombre = (index: number, nombre: string) => {
