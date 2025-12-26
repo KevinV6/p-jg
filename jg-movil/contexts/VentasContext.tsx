@@ -4,6 +4,7 @@ import type { Venta, Cliente, CarritoItem } from '@/types/types';
 import { ventaService, VentaFilters, VentaCreateData, VentaResumen } from '@/services/ventaService';
 import { clienteService } from '@/services/clienteService';
 import { realtimeService } from '@/services/realtimeService';
+import { executeWithConnection } from '@/utils/connection';
 
 interface VentasContextData {
   ventas: Venta[];
@@ -133,7 +134,23 @@ export const VentasProvider = ({ children }: { children: ReactNode }) => {
       
       console.log('[VentasContext] crearVenta - Datos recibidos:', JSON.stringify(data, null, 2));
 
-      const response = await ventaService.create(data);
+      // Ejecutar con verificación de conexión y reintentos automáticos
+      const response = await executeWithConnection(
+        () => ventaService.create(data),
+        {
+          maxRetries: 3,
+          onConnectionCheck: (connected) => {
+            console.log('[VentasContext] Verificación de conexión:', connected);
+            if (!connected) {
+              setError('No hay conexión a internet');
+            }
+          },
+          onRetry: (attempt, error) => {
+            console.log(`[VentasContext] Reintento ${attempt}/3 - Error:`, error?.message);
+          }
+        }
+      );
+
       console.log('[VentasContext] crearVenta - Respuesta del servidor:', JSON.stringify(response, null, 2));
 
       if (response.success && response.data) {
@@ -156,12 +173,12 @@ export const VentasProvider = ({ children }: { children: ReactNode }) => {
         return response.data;
       }
 
-      console.error('[VentasContext] crearVenta - ERROR:', response.error);
+      console.warn('[VentasContext] crearVenta - ERROR:', response.error);
       setError(response.error || 'Error al crear venta');
       return null;
-    } catch (err) {
-      console.error('[VentasContext] crearVenta - EXCEPCIÓN:', err);
-      setError('Error de conexión');
+    } catch (err: any) {
+      console.warn('[VentasContext] crearVenta - EXCEPCIÓN:', err);
+      setError(err?.message || 'Error de conexión. Por favor verifica tu conexión a internet e intenta nuevamente.');
       return null;
     } finally {
       setIsLoading(false);

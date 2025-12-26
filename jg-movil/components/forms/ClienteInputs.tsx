@@ -86,6 +86,7 @@ interface CiNitInputProps {
   label?: string;
   placeholder?: string;
   helperText?: string;
+  isValid?: boolean; // Para indicar si el CI/NIT coincide con un cliente seleccionado
 }
 
 export function CiNitInput({
@@ -94,14 +95,19 @@ export function CiNitInput({
   label = 'CI/NIT',
   placeholder = 'Ej: 12345678 (mínimo 8)',
   helperText = '(opcional, mín. 8 dígitos)',
+  isValid,
 }: CiNitInputProps) {
+  // Determinar color del borde según validación
+  const borderColor = isValid === true ? '#10B981' : '#8B5A3C'; // Verde si válido, marrón normal
+  
   return (
     <View className="mb-3">
       <Text className="text-sm font-poppins-semibold text-[#8B5A3C] mb-1">
         {label} <Text className="text-xs font-poppins-regular">{helperText}</Text>
       </Text>
       <TextInput
-        className="bg-[#F6EBD7] border border-[#8B5A3C] rounded-xl px-4 py-3 text-[#402612] font-poppins-regular"
+        className={`bg-[#F6EBD7] rounded-xl px-4 py-3 text-[#402612] font-poppins-regular`}
+        style={{ borderWidth: 2, borderColor }}
         placeholder={placeholder}
         placeholderTextColor="#8B5A3C80"
         value={value}
