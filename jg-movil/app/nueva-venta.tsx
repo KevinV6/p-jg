@@ -91,7 +91,7 @@ export default function NuevaVentaScreen() {
 
   const handleClienteChange = (text: string) => {
     setClienteNombre(text);
-    setClienteId(null); // Reset cliente seleccionado
+    setClienteId(null); // Reset cliente seleccionado cuando se modifica el nombre
     if (text.length > 1) {
       const filtered = clientes.filter((c) => 
         c.nombrecliente.toLowerCase().includes(text.toLowerCase()) ||
@@ -107,6 +107,16 @@ export default function NuevaVentaScreen() {
 
   const handleCiNitChange = (text: string) => {
     setClienteCiNit(text);
+    
+    // Si cambia el CI/NIT y había un cliente seleccionado, resetear selección
+    // a menos que el nuevo CI/NIT coincida exactamente con el cliente seleccionado
+    if (clienteId) {
+      const clienteActual = clientes.find(c => c.idcliente === clienteId);
+      if (clienteActual && clienteActual.ci_nit !== text) {
+        setClienteId(null); // Resetear selección si el CI/NIT no coincide
+      }
+    }
+    
     // Si cambió el CI/NIT, buscar si coincide con algún cliente
     if (text.length > 3 && !clienteId) {
       const clienteEncontrado = clientes.find(c => 
@@ -212,6 +222,8 @@ export default function NuevaVentaScreen() {
     console.log('[NuevaVenta] === INICIANDO CONFIRMAR VENTA ===');
     console.log('[NuevaVenta] Estado inicial:', { clienteId, clienteNombre, clienteCiNit, tipoVenta, carritoItems: carrito.length });
     
+    let clienteRecienCreado: number | null = null; // Para rollback
+
     try {
       let idClienteFinal = clienteId;
       let nombreClienteFinal = clienteNombre;
@@ -240,6 +252,7 @@ export default function NuevaVentaScreen() {
         if (nuevoCliente.success && nuevoCliente.data) {
           idClienteFinal = nuevoCliente.data.idcliente;
           nombreClienteFinal = nuevoCliente.data.nombrecliente;
+          clienteRecienCreado = idClienteFinal; // Guardar para posible rollback
           console.log('[NuevaVenta] Cliente creado con ID:', idClienteFinal);
         } else {
           console.error('[NuevaVenta] Error creando cliente:', nuevoCliente.error);
@@ -315,11 +328,35 @@ export default function NuevaVentaScreen() {
         setShowComprobanteModal(true);
       } else {
         console.error('[NuevaVenta] === VENTA FALLIDA ===');
+        
+        // ROLLBACK: Eliminar cliente recién creado si la venta falló
+        if (clienteRecienCreado) {
+          console.log('[NuevaVenta] ROLLBACK: Eliminando cliente recién creado ID:', clienteRecienCreado);
+          try {
+            await clienteService.delete(clienteRecienCreado);
+            console.log('[NuevaVenta] Cliente eliminado exitosamente');
+          } catch (rollbackError) {
+            console.error('[NuevaVenta] Error en rollback:', rollbackError);
+          }
+        }
+        
         showError('Error', 'No se pudo crear la venta. Verifica tu conexión e intenta nuevamente.');
         setShowConfirmModal(false);
       }
     } catch (error) {
       console.error('Error en venta:', error);
+      
+      // ROLLBACK: Eliminar cliente recién creado si hubo error
+      if (clienteRecienCreado) {
+        console.log('[NuevaVenta] ROLLBACK por excepción: Eliminando cliente ID:', clienteRecienCreado);
+        try {
+          await clienteService.delete(clienteRecienCreado);
+          console.log('[NuevaVenta] Cliente eliminado exitosamente');
+        } catch (rollbackError) {
+          console.error('[NuevaVenta] Error en rollback:', rollbackError);
+        }
+      }
+      
       showError('Error', 'Ocurrió un error al procesar la venta. Verifica tu conexión e intenta nuevamente.');
       setShowConfirmModal(false);
     } finally {
@@ -367,6 +404,7 @@ export default function NuevaVentaScreen() {
           <CiNitInput
             value={clienteCiNit}
             onChangeText={handleCiNitChange}
+            isValid={clienteId !== null} // Verde si hay cliente seleccionado
           />
 
           <ClienteStatusVenta

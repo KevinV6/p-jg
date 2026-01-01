@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import type { Usuario } from '@/types/types';
 import { authService, RegisterData, LoginCredentials } from '@/services/authService';
 
@@ -25,24 +26,90 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   // Ref para evitar errores duplicados
   const errorShownRef = useRef(false);
+  
+  // Ref para el intervalo de refresh
+  const refreshIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
     checkAuth();
+    
+    // Configurar auto-refresh cada 12 horas (43200000 ms)
+    // Esto mantiene el token fresco antes de que expire (24 horas)
+    refreshIntervalRef.current = setInterval(() => {
+      refreshTokenIfNeeded();
+    }, 12 * 60 * 60 * 1000); // 12 horas
+    
+    // Listener para cuando la app vuelve del background
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    // Cleanup al desmontar
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+      subscription.remove();
+    };
   }, []);
+
+  const handleAppStateChange = (nextAppState: AppStateStatus) => {
+    // Cuando la app vuelve al foreground (activa)
+    if (nextAppState === 'active' && user) {
+      console.log('[AuthContext] App volvió al foreground, verificando token...');
+      refreshTokenIfNeeded();
+    }
+  };
+
+  const refreshTokenIfNeeded = async () => {
+    try {
+      const isAuth = await authService.isAuthenticated();
+      
+      if (isAuth && user) {
+        console.log('[AuthContext] Refrescando token preventivamente...');
+        const result = await authService.refreshToken();
+        
+        if (result.success) {
+          console.log('[AuthContext] ✅ Token refrescado exitosamente');
+        } else {
+          console.warn('[AuthContext] ⚠️ No se pudo refrescar token:', result.error);
+        }
+      }
+    } catch (error) {
+      console.error('[AuthContext] Error en refresh automático:', error);
+    }
+  };
 
   const checkAuth = async () => {
     try {
       setIsLoading(true);
       console.log('[AuthContext] Starting checkAuth...');
       
-      const isAuth = await authService.isAuthenticated();
+      let isAuth = await authService.isAuthenticated();
       console.log('[AuthContext] isAuthenticated result:', isAuth);
+      
+      // Si el token está expirado, intentar refrescar automáticamente
+      if (!isAuth) {
+        console.log('[AuthContext] Token expirado, intentando refresh automático...');
+        const refreshResult = await authService.refreshToken();
+        
+        if (refreshResult.success) {
+          console.log('[AuthContext] ✅ Token refrescado en checkAuth');
+          isAuth = true;
+          
+          // Si el refresh trajo datos del usuario, usarlos
+          if (refreshResult.user) {
+            setUser(refreshResult.user);
+            console.log('[AuthContext] Usuario actualizado desde refresh');
+          }
+        } else {
+          console.log('[AuthContext] ❌ No se pudo refrescar, usuario debe hacer login');
+        }
+      }
       
       if (isAuth) {
         const storedUser = await authService.getStoredUser();
         console.log('[AuthContext] storedUser:', storedUser ? 'found' : 'null');
         
-        if (storedUser) {
+        if (storedUser && !user) {
           setUser(storedUser);
           // Verificar que el usuario sigue siendo válido
           try {
@@ -58,6 +125,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       } else {
         console.log('[AuthContext] Not authenticated, user will be null');
+        setUser(null);
       }
     } catch (err) {
       console.error('[AuthContext] Error checking auth:', err);

@@ -2,7 +2,7 @@ import { SafeHeader, ScreenContainer } from '@/components/shared/ScreenContainer
 import { useVentas } from '@/contexts/VentasContext';
 import { Venta } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
-import { endOfMonth, format, isWithinInterval, startOfMonth } from 'date-fns';
+import { endOfDay, endOfMonth, format, isWithinInterval, startOfDay, startOfMonth, subDays } from 'date-fns';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -19,27 +19,26 @@ export default function HistorialVentasScreen() {
 
   const getFilteredVentas = () => {
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayStart = startOfDay(now);
+    const todayEnd = endOfDay(now);
 
     switch (filterPeriodo) {
       case 'hoy':
         return ventas.filter((v: Venta) => {
           const ventaDate = new Date(v.fecha);
-          return (
-            ventaDate.getDate() === today.getDate() &&
-            ventaDate.getMonth() === today.getMonth() &&
-            ventaDate.getFullYear() === today.getFullYear()
-          );
+          return isWithinInterval(ventaDate, { start: todayStart, end: todayEnd });
         });
       case 'semana':
-        const weekAgo = new Date(today);
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        return ventas.filter((v: Venta) => new Date(v.fecha) >= weekAgo);
+        const weekAgo = startOfDay(subDays(now, 7));
+        return ventas.filter((v: Venta) => {
+          const ventaDate = new Date(v.fecha);
+          return isWithinInterval(ventaDate, { start: weekAgo, end: todayEnd });
+        });
       case 'mes':
         return ventas.filter((v: Venta) =>
           isWithinInterval(new Date(v.fecha), {
             start: startOfMonth(now),
-            end: endOfMonth(now),
+            end: endOfDay(endOfMonth(now)),
           })
         );
       default:

@@ -159,7 +159,7 @@ const register = async (req, res) => {
     // Generar tokens
     const { token, refreshToken } = generateTokens(newUser);
 
-    // Calcular fecha de expiración
+    // Calcular fecha de expiración (24 horas)
     const fechaExpiracion = new Date();
     fechaExpiracion.setHours(fechaExpiracion.getHours() + 24);
 
@@ -244,7 +244,7 @@ const refreshToken = async (req, res) => {
     // Generar nuevos tokens
     const { token, refreshToken: newRefreshToken } = generateTokens(session.usuario);
 
-    // Calcular nueva expiración
+    // Calcular nueva expiración (24 horas)
     const fechaExpiracion = new Date();
     fechaExpiracion.setHours(fechaExpiracion.getHours() + 24);
 
@@ -260,7 +260,11 @@ const refreshToken = async (req, res) => {
         estado: 1
       });
 
+    // Respuesta sin contraseña
+    const { contrasenia: _, ...userWithoutPassword } = session.usuario;
+
     return successResponse(res, {
+      user: userWithoutPassword,
       token,
       refreshToken: newRefreshToken,
       expiresAt: fechaExpiracion.toISOString()
