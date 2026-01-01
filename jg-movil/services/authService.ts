@@ -71,6 +71,30 @@ class AuthService {
     return api.post('/auth/request-password-reset', { email });
   }
 
+  async refreshToken(): Promise<{ success: boolean; error?: string; user?: Usuario }> {
+    try {
+      const refreshToken = await AsyncStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+      
+      if (!refreshToken) {
+        return { success: false, error: 'No hay refresh token disponible' };
+      }
+
+      const response = await api.post<AuthResponse>('/auth/refresh-token', { refreshToken });
+      
+      if (response.success && response.data) {
+        await this.saveSession(response.data);
+        console.log('[AuthService] Token refrescado exitosamente');
+        return { success: true, user: response.data.user };
+      }
+
+      console.warn('[AuthService] Error al refrescar token:', response.error);
+      return { success: false, error: response.error };
+    } catch (error) {
+      console.error('[AuthService] Excepción al refrescar token:', error);
+      return { success: false, error: 'Error al refrescar token' };
+    }
+  }
+
   private async saveSession(authData: AuthResponse) {
     console.log('[AuthService] Saving session:', {
       hasToken: !!authData.token,
