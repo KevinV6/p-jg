@@ -27,6 +27,29 @@ export default function InventarioScreen() {
   const [showUnitModal, setShowUnitModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Debug: Log para verificar estructura de datos cuando cambia el filtro de unidad
+  useEffect(() => {
+    if (selectedUnit && productos.length > 0) {
+      console.log('=== DEBUG FILTRO DE UNIDAD ===');
+      console.log('Unidad seleccionada:', selectedUnit);
+      console.log('Tipo de selectedUnit:', typeof selectedUnit);
+      
+      // Verificar primer producto con unidades
+      const productoConUnidades = productos.find(p => p.unidades && p.unidades.length > 0);
+      if (productoConUnidades) {
+        console.log('Ejemplo de producto con unidades:', productoConUnidades.nombreproducto);
+        console.log('Unidades del producto:', JSON.stringify(productoConUnidades.unidades, null, 2));
+        
+        if (productoConUnidades.unidades && productoConUnidades.unidades.length > 0) {
+          const primeraUnidad = productoConUnidades.unidades[0];
+          console.log('Primera unidad - unidadid:', primeraUnidad.unidadid, 'tipo:', typeof primeraUnidad.unidadid);
+          console.log('Primera unidad - unidad?.idunidad:', primeraUnidad.unidad?.idunidad, 'tipo:', typeof primeraUnidad.unidad?.idunidad);
+        }
+      }
+      console.log('==============================');
+    }
+  }, [selectedUnit, productos]);
+
   const getFilteredProductos = () => {
     let result = searchQuery ? searchProductos(searchQuery) : productos;
     
@@ -35,9 +58,19 @@ export default function InventarioScreen() {
     }
     
     if (selectedUnit) {
-      result = result.filter(p => 
-        p.unidades?.some(u => u.unidadid === selectedUnit)
-      );
+      result = result.filter(p => {
+        // Verificar si el producto tiene unidades asignadas
+        if (!p.unidades || p.unidades.length === 0) {
+          return false;
+        }
+        // ProductoUnidad tiene una propiedad 'unidad' anidada con el idunidad
+        // También tiene una propiedad directa 'unidadid'
+        return p.unidades.some(productounidad => {
+          // Verificar tanto unidadid directo como unidad.idunidad anidado
+          return productounidad.unidadid === selectedUnit || 
+                 productounidad.unidad?.idunidad === selectedUnit;
+        });
+      });
     }
     
     return result;

@@ -193,7 +193,8 @@ class ApiService {
       return data;
     } catch (error: any) {
       clearTimeout(timeoutId);
-      console.error('API Error:', error);
+      // Usar warn en lugar de error porque estos errores son manejados
+      console.warn('[API] Error de conexión:', error.message || error);
       
       // Error de timeout o abort
       if (error.name === 'AbortError') {

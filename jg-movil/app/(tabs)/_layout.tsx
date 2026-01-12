@@ -4,12 +4,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigationType } from '@/hooks/use-navigation-type';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+// Padding mínimo para dispositivos con botones virtuales
+const MIN_TAB_BAR_PADDING = 8;
+
 export default function TabLayout() {
   const { tabBarElevation, tabBarPaddingBottom, hasVirtualButtons, isGestural } = useNavigationType();
   const insets = useSafeAreaInsets();
   
+  // Garantizar padding mínimo para dispositivos con botones virtuales
+  const effectivePaddingBottom = hasVirtualButtons 
+    ? Math.max(tabBarPaddingBottom, MIN_TAB_BAR_PADDING) 
+    : tabBarPaddingBottom;
+  
   // Calcular altura total del tab bar incluyendo zona segura
-  const tabBarHeight = 65 + tabBarPaddingBottom;
+  const tabBarHeight = 65 + effectivePaddingBottom;
   
   return (
     <Tabs
@@ -22,7 +30,7 @@ export default function TabLayout() {
           borderTopColor: '#E5E5E5',
           borderTopWidth: 1,
           height: tabBarHeight,
-          paddingBottom: tabBarPaddingBottom, // Padding dinámico según navegación
+          paddingBottom: effectivePaddingBottom, // Padding dinámico según navegación
           paddingTop: 8,
           // Elevación diferenciada según tipo de navegación
           elevation: tabBarElevation,

@@ -57,7 +57,13 @@ class RealtimeService {
           }
         )
         .subscribe((status) => {
-          console.log(`[Realtime] Canal ${table}: ${status}`);
+          // Solo loguear estados importantes (no CHANNEL_ERROR repetitivo)
+          if (status === 'SUBSCRIBED') {
+            console.log(`[Realtime] ✅ Canal ${table}: conectado`);
+          } else if (status === 'CLOSED') {
+            console.log(`[Realtime] 🔌 Canal ${table}: desconectado`);
+          }
+          // Ignorar CHANNEL_ERROR, TIMED_OUT para evitar spam en logs
         });
 
       this.channels.set(channelId, channel);

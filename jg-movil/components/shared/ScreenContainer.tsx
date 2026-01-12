@@ -3,6 +3,9 @@ import { Platform, StatusBar, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigationType } from '@/hooks/use-navigation-type';
 
+// Padding mínimo garantizado para dispositivos con botones virtuales
+const MIN_BOTTOM_PADDING = 16;
+
 interface ScreenContainerProps {
   children: React.ReactNode;
   /** Color de fondo del contenedor */
@@ -26,6 +29,9 @@ interface ScreenContainerProps {
 /**
  * Componente contenedor para pantallas que maneja la zona segura de manera consistente.
  * Usa useSafeAreaInsets para aplicar el padding correcto sin causar "saltos" visuales.
+ * 
+ * Para dispositivos con botones virtuales (Android), garantiza un padding mínimo
+ * en la parte inferior para evitar que el contenido quede tapado.
  */
 export const ScreenContainer: React.FC<ScreenContainerProps> = ({
   children,
@@ -39,19 +45,29 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
   hasTabBar = false,
 }) => {
   const insets = useSafeAreaInsets();
-  const { tabBarPaddingBottom } = useNavigationType();
+  const { tabBarPaddingBottom, hasVirtualButtons, bottomContentPadding } = useNavigationType();
 
   // Si tiene header oscuro, aplicamos el padding top al header, no al contenedor
   const paddingTop = safeTop && !hasDarkHeader ? insets.top : 0;
   
-  // Calcular padding inferior
+  // Calcular padding inferior con soporte para botones virtuales
   let paddingBottom = 0;
   if (hasTabBar) {
     // Si tiene tab bar, usar la altura del tab bar + su padding
-    paddingBottom = 65 + tabBarPaddingBottom;
+    // Para dispositivos con botones virtuales, agregar padding extra
+    const tabBarHeight = 65;
+    paddingBottom = tabBarHeight + tabBarPaddingBottom;
+    
+    // En dispositivos con botones virtuales, asegurar espacio adicional
+    if (hasVirtualButtons && Platform.OS === 'android') {
+      paddingBottom = Math.max(paddingBottom, tabBarHeight + MIN_BOTTOM_PADDING);
+    }
   } else if (safeBottom) {
     // Si no tiene tab bar pero necesita zona segura
-    paddingBottom = insets.bottom;
+    // Usar el padding garantizado para dispositivos con botones virtuales
+    paddingBottom = hasVirtualButtons 
+      ? Math.max(insets.bottom, MIN_BOTTOM_PADDING)
+      : insets.bottom;
   }
 
   return (

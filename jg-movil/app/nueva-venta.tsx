@@ -221,18 +221,17 @@ export default function NuevaVentaScreen() {
     setProcesando(true);
     console.log('[NuevaVenta] === INICIANDO CONFIRMAR VENTA ===');
     console.log('[NuevaVenta] Estado inicial:', { clienteId, clienteNombre, clienteCiNit, tipoVenta, carritoItems: carrito.length });
-    
-    let clienteRecienCreado: number | null = null; // Para rollback
 
     try {
       let idClienteFinal = clienteId;
       let nombreClienteFinal = clienteNombre;
+      let clienteNuevoData = null;
 
       // Caso 1: Cliente ya seleccionado del autocompletado
       if (idClienteFinal) {
         console.log('[NuevaVenta] Usando cliente ya seleccionado ID:', idClienteFinal);
       }
-      // Caso 2: Si hay nombre pero no cliente seleccionado, crear nuevo cliente
+      // Caso 2: Si hay nombre pero no cliente seleccionado, preparar datos para crear nuevo cliente
       else if (clienteNombre.trim()) {
         // Para crear un nuevo cliente, DEBE proporcionar CI/NIT válido
         const ciNitTrimmed = clienteCiNit.trim();
@@ -242,28 +241,16 @@ export default function NuevaVentaScreen() {
           return;
         }
         
-        console.log('[NuevaVenta] Creando nuevo cliente:', { nombre: clienteNombre, ci_nit: ciNitTrimmed });
-        const nuevoCliente = await clienteService.create({
+        console.log('[NuevaVenta] Preparando datos para crear nuevo cliente en backend:', { nombre: clienteNombre, ci_nit: ciNitTrimmed });
+        nombreClienteFinal = clienteNombre.trim();
+        clienteNuevoData = {
           nombre: clienteNombre.trim(),
           ci_nit: ciNitTrimmed,
-        });
-
-        console.log('[NuevaVenta] Respuesta crear cliente:', nuevoCliente);
-        if (nuevoCliente.success && nuevoCliente.data) {
-          idClienteFinal = nuevoCliente.data.idcliente;
-          nombreClienteFinal = nuevoCliente.data.nombrecliente;
-          clienteRecienCreado = idClienteFinal; // Guardar para posible rollback
-          console.log('[NuevaVenta] Cliente creado con ID:', idClienteFinal);
-        } else {
-          console.error('[NuevaVenta] Error creando cliente:', nuevoCliente.error);
-          showError('Error', nuevoCliente.error || 'No se pudo crear el cliente');
-          setProcesando(false);
-          return;
-        }
+        };
       }
       // Caso 3: Sin nombre ni CI/NIT → usar cliente genérico "Sin Nombre"
       else {
-        console.log('[NuevaVenta] Campos vacíos, buscando cliente "Sin Nombre" (CI: 0)...');
+        console.log('[NuevaVenta] Campos vacíos, buscando cliente "Sin Nombre"...');
         const genericoRes = await clienteService.getGenerico();
         console.log('[NuevaVenta] Respuesta cliente genérico:', genericoRes);
         if (genericoRes.success && genericoRes.data) {
@@ -287,15 +274,24 @@ export default function NuevaVentaScreen() {
         subtotal: item.subtotal,
       }));
 
-      const ventaData = {
-        clienteid: idClienteFinal,
+      // Construir datos de venta con transacción atómica
+      const ventaData: any = {
         total,
         tipo_pago: tipoVenta,
         fecha: new Date().toISOString(), // Fecha local del móvil
         detalle,
       };
 
-      console.log('[NuevaVenta] Datos de venta a enviar:', JSON.stringify(ventaData, null, 2));
+      // Si hay cliente existente, usar clienteid
+      if (idClienteFinal) {
+        ventaData.clienteid = idClienteFinal;
+      }
+      // Si hay datos de cliente nuevo, enviarlos para crear en backend
+      else if (clienteNuevoData) {
+        ventaData.cliente_nuevo = clienteNuevoData;
+      }
+
+      console.log('[NuevaVenta] Datos de venta a enviar (transacción atómica):', JSON.stringify(ventaData, null, 2));
       const result = await crearVenta(ventaData);
       console.log('[NuevaVenta] Resultado de crearVenta:', result);
       
@@ -328,35 +324,11 @@ export default function NuevaVentaScreen() {
         setShowComprobanteModal(true);
       } else {
         console.error('[NuevaVenta] === VENTA FALLIDA ===');
-        
-        // ROLLBACK: Eliminar cliente recién creado si la venta falló
-        if (clienteRecienCreado) {
-          console.log('[NuevaVenta] ROLLBACK: Eliminando cliente recién creado ID:', clienteRecienCreado);
-          try {
-            await clienteService.delete(clienteRecienCreado);
-            console.log('[NuevaVenta] Cliente eliminado exitosamente');
-          } catch (rollbackError) {
-            console.error('[NuevaVenta] Error en rollback:', rollbackError);
-          }
-        }
-        
         showError('Error', 'No se pudo crear la venta. Verifica tu conexión e intenta nuevamente.');
         setShowConfirmModal(false);
       }
     } catch (error) {
       console.error('Error en venta:', error);
-      
-      // ROLLBACK: Eliminar cliente recién creado si hubo error
-      if (clienteRecienCreado) {
-        console.log('[NuevaVenta] ROLLBACK por excepción: Eliminando cliente ID:', clienteRecienCreado);
-        try {
-          await clienteService.delete(clienteRecienCreado);
-          console.log('[NuevaVenta] Cliente eliminado exitosamente');
-        } catch (rollbackError) {
-          console.error('[NuevaVenta] Error en rollback:', rollbackError);
-        }
-      }
-      
       showError('Error', 'Ocurrió un error al procesar la venta. Verifica tu conexión e intenta nuevamente.');
       setShowConfirmModal(false);
     } finally {
