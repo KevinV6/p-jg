@@ -10,6 +10,7 @@ import {
   View,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export interface DateRange {
   startDate: Date;
@@ -40,6 +41,9 @@ export function DateFilterButtons({
   filterType, 
   onFilterChange 
 }: DateFilterProps) {
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, 16);
+  
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [startDateText, setStartDateText] = useState(formatDate(new Date()));
   const [endDateText, setEndDateText] = useState(formatDate(new Date()));
@@ -149,7 +153,10 @@ export function DateFilterButtons({
         onRequestClose={() => setShowCustomModal(false)}
       >
         <View className="flex-1 bg-black/50 justify-end">
-          <View className="bg-[#F6EBD7] rounded-t-3xl p-6">
+          <View 
+            className="bg-[#F6EBD7] rounded-t-3xl p-6"
+            style={{ paddingBottom: Math.max(bottomPadding, 24) }}
+          >
             <View className="flex-row justify-between items-center mb-6">
               <Text className="text-xl font-poppins-bold text-[#402612]">
                 Seleccionar Rango

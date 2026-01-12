@@ -13,6 +13,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export interface ItemCarrito {
   idproducto: number;
@@ -45,6 +46,8 @@ export default function ProductSelector({
   showInternalTotal = true, // Por defecto mostrar el total
 }: ProductSelectorProps) {
   const { productos } = useInventario();
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, 16);
 
   const [showProductSelector, setShowProductSelector] = useState(false);
   const [showVariantSelector, setShowVariantSelector] = useState(false);
@@ -469,7 +472,10 @@ export default function ProductSelector({
         }}
       >
         <View className="flex-1 bg-black/50 justify-end">
-          <View className="bg-[#F6EBD7] rounded-t-3xl max-h-[80%]">
+          <View 
+            className="bg-[#F6EBD7] rounded-t-3xl max-h-[80%]"
+            style={{ paddingBottom: bottomPadding }}
+          >
             <View className="bg-[#402612] rounded-t-3xl px-4 py-4 flex-row items-center justify-between">
               <Text className="text-xl font-poppins-bold text-[#F6EBD7]">
                 Seleccionar Producto
@@ -547,7 +553,10 @@ export default function ProductSelector({
         onRequestClose={() => setShowVariantSelector(false)}
       >
         <View className="flex-1 bg-black/50 justify-end">
-          <View className="bg-[#F6EBD7] rounded-t-3xl max-h-[60%]">
+          <View 
+            className="bg-[#F6EBD7] rounded-t-3xl max-h-[60%]"
+            style={{ paddingBottom: bottomPadding }}
+          >
             <View className="bg-[#402612] rounded-t-3xl px-4 py-4 flex-row items-center justify-between">
               <Text className="text-xl font-poppins-bold text-[#F6EBD7]">
                 Seleccionar Variante
