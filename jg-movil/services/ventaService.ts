@@ -19,8 +19,16 @@ export interface DetalleVentaInput {
   subtotal: number;
 }
 
+export interface ClienteNuevoInput {
+  nombre: string;
+  ci_nit: string;
+  telefono?: string;
+  direccion?: string;
+}
+
 export interface VentaCreateData {
-  clienteid: number;
+  clienteid?: number; // Opcional si se envía cliente_nuevo
+  cliente_nuevo?: ClienteNuevoInput; // Nuevo: datos para crear cliente en backend
   detalle: DetalleVentaInput[];
   tipo_pago: 'contado' | 'credito';
   fecha?: string; // Fecha ISO desde el cliente

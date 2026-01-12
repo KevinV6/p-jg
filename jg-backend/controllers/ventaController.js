@@ -205,6 +205,7 @@ const create = async (req, res) => {
 
     const { 
       clienteid,
+      cliente_nuevo, // Nuevo: datos para crear cliente
       tipo_pago = 'contado',
       total,
       fecha, // Fecha desde el cliente
@@ -212,11 +213,11 @@ const create = async (req, res) => {
     } = req.body;
 
     // Log de datos extraídos
-    console.log('Datos extraídos:', { clienteid, tipo_pago, total, fecha, detalleCount: detalle.length });
+    console.log('Datos extraídos:', { clienteid, cliente_nuevo, tipo_pago, total, fecha, detalleCount: detalle.length });
 
     // Validar campos requeridos
-    if (!clienteid) {
-      console.log('ERROR: clienteid no proporcionado');
+    if (!clienteid && !cliente_nuevo) {
+      console.log('ERROR: ni clienteid ni cliente_nuevo proporcionados');
       return errorResponse(res, 'El cliente es requerido', 400);
     }
 
@@ -226,24 +227,109 @@ const create = async (req, res) => {
     }
 
     const supabase = getAdminConnection();
+    let idClienteFinal = clienteid;
+    let clienteRecienCreado = null; // Para rollback si es necesario
 
-    // Verificar que el cliente existe
-    console.log('Verificando cliente:', clienteid);
+    // Si se proporciona cliente_nuevo, crearlo primero
+    if (cliente_nuevo && !clienteid) {
+      console.log('Creando nuevo cliente desde venta:', cliente_nuevo);
+      
+      const { nombre, ci_nit, telefono, direccion } = cliente_nuevo;
+      
+      if (!nombre || !nombre.trim()) {
+        console.log('ERROR: nombre de cliente requerido');
+        return errorResponse(res, 'El nombre del cliente es requerido', 400);
+      }
+
+      // Determinar CI/NIT final
+      let ciNitFinal = ci_nit ? ci_nit.trim() : '';
+      
+      // Validar longitud mínima si se proporciona CI/NIT
+      if (ciNitFinal && ciNitFinal !== 'S/N' && ciNitFinal.length < 8) {
+        return errorResponse(res, 'El CI/NIT debe tener al menos 8 dígitos', 400);
+      }
+
+      // Si CI/NIT está vacío, generar uno único
+      if (!ciNitFinal || ciNitFinal === 'S/N' || ciNitFinal === '') {
+        const timestamp = Date.now();
+        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        ciNitFinal = `SN-${timestamp}-${random}`;
+      }
+
+      // Verificar si CI/NIT ya existe
+      const { data: existingClient } = await supabase
+        .from('cliente')
+        .select('idcliente, nombrecliente, ci_nit')
+        .eq('ci_nit', ciNitFinal)
+        .eq('estado', 1)
+        .single();
+
+      if (existingClient) {
+        console.log('Cliente encontrado con ese CI/NIT:', existingClient);
+        
+        // Normalizar nombres para comparación (sin mayúsculas, sin espacios extra)
+        const nombreNuevoNormalizado = nombre.trim().toLowerCase().replace(/\s+/g, ' ');
+        const nombreExistenteNormalizado = existingClient.nombrecliente.trim().toLowerCase().replace(/\s+/g, ' ');
+        
+        // Si los nombres coinciden, usar el cliente existente (autocompletado implícito)
+        if (nombreNuevoNormalizado === nombreExistenteNormalizado) {
+          console.log('Nombres coinciden, usando cliente existente ID:', existingClient.idcliente);
+          idClienteFinal = existingClient.idcliente;
+          // NO crear cliente nuevo, usar el existente
+        } else {
+          // Nombres diferentes, es un duplicado real
+          console.log('ERROR: Mismo CI/NIT pero nombre diferente');
+          return errorResponse(res, `Ya existe un cliente con ese CI/NIT: "${existingClient.nombrecliente}". Si es el mismo cliente, usa el nombre correcto: "${existingClient.nombrecliente}"`, 400);
+        }
+      } else {
+        // Cliente no existe, crearlo
+        const { data: nuevoCliente, error: crearClienteError } = await supabase
+          .from('cliente')
+          .insert({
+            nombrecliente: nombre.trim(),
+            ci_nit: ciNitFinal,
+            telefono: telefono || null,
+            direccion: direccion || null,
+            es_generico: false,
+            estado: 1,
+            usuarioid: req.user.idusuario
+          })
+          .select('idcliente, nombrecliente, es_generico')
+          .single();
+
+        if (crearClienteError || !nuevoCliente) {
+          console.log('ERROR creando cliente:', crearClienteError);
+          return errorResponse(res, `Error al crear cliente: ${crearClienteError?.message || 'Unknown error'}`, 500);
+        }
+
+        console.log('Cliente creado exitosamente:', nuevoCliente);
+        idClienteFinal = nuevoCliente.idcliente;
+        clienteRecienCreado = nuevoCliente;
+      }
+    }
+
+    // Verificar que el cliente existe (ya sea existente o recién creado)
+    console.log('Verificando cliente:', idClienteFinal);
     const { data: cliente, error: clienteError } = await supabase
       .from('cliente')
       .select('idcliente, nombrecliente, es_generico')
-      .eq('idcliente', clienteid)
+      .eq('idcliente', idClienteFinal)
       .single();
 
     if (clienteError || !cliente) {
       console.log('ERROR: Cliente no encontrado', clienteError);
       return errorResponse(res, 'Cliente no encontrado', 404);
     }
-    console.log('Cliente encontrado:', cliente);
+    console.log('Cliente confirmado:', cliente);
 
     // Si es venta a crédito, verificar que no sea cliente genérico
     if (tipo_pago === 'credito' && cliente.es_generico) {
       console.log('ERROR: Venta a crédito con cliente genérico');
+      // Si acabamos de crear el cliente, eliminarlo (rollback)
+      if (clienteRecienCreado) {
+        console.log('ROLLBACK: Eliminando cliente recién creado');
+        await supabase.from('cliente').delete().eq('idcliente', clienteRecienCreado.idcliente);
+      }
       return errorResponse(res, 'No se puede hacer venta a crédito al cliente "Sin Nombre". Debe registrar los datos del cliente.', 400);
     }
 
@@ -270,7 +356,7 @@ const create = async (req, res) => {
     // Crear venta
     const ventaData = {
       fecha: fecha ? new Date(fecha).toISOString() : new Date().toISOString(), // Usar fecha del cliente o servidor
-      clienteid: Number(clienteid),
+      clienteid: Number(idClienteFinal),
       usuarioid: req.user.idusuario,
       total: totalCalculado,
       tipo_pago,
@@ -287,6 +373,11 @@ const create = async (req, res) => {
 
     if (ventaError) {
       console.error('ERROR creando venta:', ventaError);
+      // ROLLBACK: Eliminar cliente recién creado si falló la venta
+      if (clienteRecienCreado) {
+        console.log('ROLLBACK: Eliminando cliente recién creado');
+        await supabase.from('cliente').delete().eq('idcliente', clienteRecienCreado.idcliente);
+      }
       return errorResponse(res, `Error al crear venta: ${ventaError.message}`, 500);
     }
     console.log('Venta creada:', venta);
@@ -317,8 +408,13 @@ const create = async (req, res) => {
 
     if (detallesError) {
       console.error('ERROR creando detalles:', detallesError);
-      // Revertir venta si falla
+      // ROLLBACK: Eliminar venta
       await supabase.from('venta').delete().eq('idventa', venta.idventa);
+      // ROLLBACK: Eliminar cliente recién creado si existía
+      if (clienteRecienCreado) {
+        console.log('ROLLBACK: Eliminando cliente recién creado');
+        await supabase.from('cliente').delete().eq('idcliente', clienteRecienCreado.idcliente);
+      }
       return errorResponse(res, `Error al crear detalles de venta: ${detallesError.message}`, 500);
     }
     console.log('Detalles creados exitosamente');

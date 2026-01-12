@@ -1,4 +1,6 @@
 import { SafeHeader, ScreenContainer } from '@/components/shared/ScreenContainer';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigationType } from '@/hooks/use-navigation-type';
 import { useCustomAlert } from '@/components/shared/CustomAlert';
 import { ProcessingModal, DeleteConfirmModal } from '@/components/shared/ProcessingModal';
 import {
@@ -62,6 +64,7 @@ export default function ProductoFormScreen() {
   const params = useLocalSearchParams();
   const { productos, categorias, unidades: unidadesMedida, addProducto, updateProducto, deleteProducto, getProductoById, isLoading } = useInventario();
   const { showError, showWarning, showSuccess, AlertComponent } = useCustomAlert();
+  const { bottomContentPadding, hasVirtualButtons } = useNavigationType();
   const isEditing = !!params.id;
 
   const [nombre, setNombre] = useState('');
@@ -744,7 +747,15 @@ export default function ProductoFormScreen() {
       </Modal>
 
       {/* Botones de acción */}
-      <View className="p-4 bg-white" style={{ elevation: 3, borderTopWidth: 1, borderTopColor: '#E5E5E5' }}>
+      <View 
+        className="p-4 bg-white" 
+        style={{ 
+          elevation: 3, 
+          borderTopWidth: 1, 
+          borderTopColor: '#E5E5E5',
+          paddingBottom: Math.max(bottomContentPadding, 16)
+        }}
+      >
         {isEditing && (
           <View className="flex-row gap-3">
             {/* Botón Eliminar */}

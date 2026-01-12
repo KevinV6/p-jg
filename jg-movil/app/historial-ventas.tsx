@@ -25,22 +25,28 @@ export default function HistorialVentasScreen() {
     switch (filterPeriodo) {
       case 'hoy':
         return ventas.filter((v: Venta) => {
+          // La fecha puede venir como string ISO con zona horaria
           const ventaDate = new Date(v.fecha);
-          return isWithinInterval(ventaDate, { start: todayStart, end: todayEnd });
+          const ventaDateOnly = startOfDay(ventaDate);
+          const todayDateOnly = startOfDay(now);
+          
+          // Comparar solo las fechas sin considerar la hora
+          return ventaDateOnly.getTime() === todayDateOnly.getTime();
         });
       case 'semana':
         const weekAgo = startOfDay(subDays(now, 7));
         return ventas.filter((v: Venta) => {
-          const ventaDate = new Date(v.fecha);
-          return isWithinInterval(ventaDate, { start: weekAgo, end: todayEnd });
+          const ventaDate = startOfDay(new Date(v.fecha));
+          return ventaDate >= weekAgo && ventaDate <= startOfDay(now);
         });
       case 'mes':
-        return ventas.filter((v: Venta) =>
-          isWithinInterval(new Date(v.fecha), {
+        return ventas.filter((v: Venta) => {
+          const ventaDate = new Date(v.fecha);
+          return isWithinInterval(ventaDate, {
             start: startOfMonth(now),
             end: endOfDay(endOfMonth(now)),
-          })
-        );
+          });
+        });
       default:
         return ventas;
     }

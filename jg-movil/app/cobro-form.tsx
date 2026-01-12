@@ -1,6 +1,7 @@
 import { ComprobanteModal, ConfirmModal } from '@/components/modales';
 import { SafeHeader, ScreenContainer } from '@/components/shared/ScreenContainer';
 import { useCustomAlert } from '@/components/shared/CustomAlert';
+import { useNavigationType } from '@/hooks/use-navigation-type';
 import { 
   ClienteAutocomplete, 
   CiNitInput, 
@@ -35,6 +36,7 @@ export default function CobroFormScreen() {
   const { clientes, loadClientes } = useVentas();
   const { user } = useAuth();
   const { showError, showSuccess, AlertComponent } = useCustomAlert();
+  const { bottomContentPadding } = useNavigationType();
 
   // Estados principales - igual que nueva-venta
   const [clienteId, setClienteId] = useState<number | null>(null);
@@ -320,7 +322,10 @@ export default function CobroFormScreen() {
 
       {/* Botón Finalizar */}
       {carrito.length > 0 && (
-          <View className="px-4 pb-4 pt-2 bg-[#F6EBD7] border-t border-[#E5E5E5]">
+          <View 
+            className="px-4 pt-2 bg-[#F6EBD7] border-t border-[#E5E5E5]"
+            style={{ paddingBottom: Math.max(bottomContentPadding, 16) }}
+          >
             {/* Total */}
             <View className="flex-row justify-between items-center mb-3 px-2">
               <View className="flex-row items-center">
