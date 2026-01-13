@@ -51,7 +51,8 @@ function RootNavigator() {
   }
 
   // Mostrar pantalla de error de conexión si no hay conectividad completa
-  if (!isFullyConnected && !isChecking) {
+  // Mantenemos la pantalla de error visible mientras se está verificando para mostrar el estado de carga
+  if (!isFullyConnected) {
     return (
       <ConnectionErrorScreen
         error="No hay conexión a internet o no se puede conectar con el servidor"

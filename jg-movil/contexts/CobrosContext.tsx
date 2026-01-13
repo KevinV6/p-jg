@@ -3,6 +3,7 @@ import { DeviceEventEmitter } from 'react-native';
 import type { Cobro } from '@/types/types';
 import { cobroService, CobroFilters, CobroCreateData, CobroResumen } from '@/services/cobroService';
 import { realtimeService } from '@/services/realtimeService';
+import { executeWithConnection } from '@/utils/connection';
 
 interface CobrosContextData {
   cobros: Cobro[];
@@ -123,17 +124,40 @@ export const CobrosProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(true);
       setError(null);
 
-      const response = await cobroService.create(cobroData);
+      console.log('[CobrosContext] addCobro - Datos recibidos:', JSON.stringify(cobroData, null, 2));
+
+      // Ejecutar con verificación de conexión y reintentos automáticos
+      const response = await executeWithConnection(
+        () => cobroService.create(cobroData),
+        {
+          maxRetries: 3,
+          onConnectionCheck: (connected) => {
+            console.log('[CobrosContext] Verificación de conexión:', connected);
+            if (!connected) {
+              setError('No hay conexión a internet');
+            }
+          },
+          onRetry: (attempt, error) => {
+            console.log(`[CobrosContext] Reintento ${attempt}/3 - Error:`, error?.message);
+          }
+        }
+      );
+
+      console.log('[CobrosContext] addCobro - Respuesta del servidor:', JSON.stringify(response, null, 2));
 
       if (response.success && response.data) {
+        console.log('[CobrosContext] addCobro - ÉXITO, cobro creado:', response.data.idcobro);
         setCobros(prev => [response.data!, ...prev]);
+        loadResumen(); // Recargar resumen después de crear cobro
         return response.data;
       }
 
+      console.warn('[CobrosContext] addCobro - ERROR:', response.error);
       setError(response.error || 'Error al crear cobro');
       return null;
-    } catch (err) {
-      setError('Error de conexión');
+    } catch (err: any) {
+      console.warn('[CobrosContext] addCobro - EXCEPCIÓN:', err);
+      setError(err?.message || 'Error de conexión. Por favor verifica tu conexión a internet e intenta nuevamente.');
       return null;
     } finally {
       setIsLoading(false);

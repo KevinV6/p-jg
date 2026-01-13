@@ -3,7 +3,10 @@ import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subM
 import { es } from 'date-fns/locale';
 import React, { useState } from 'react';
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -148,108 +151,121 @@ export function DateFilterButtons({
       {/* Modal de rango personalizado */}
       <Modal
         visible={showCustomModal}
-        animationType="slide"
+        animationType="fade"
         transparent
         onRequestClose={() => setShowCustomModal(false)}
+        statusBarTranslucent
       >
-        <View className="flex-1 bg-black/50 justify-end">
-          <View 
-            className="bg-[#F6EBD7] rounded-t-3xl p-6"
-            style={{ paddingBottom: Math.max(bottomPadding, 24) }}
-          >
-            <View className="flex-row justify-between items-center mb-6">
-              <Text className="text-xl font-poppins-bold text-[#402612]">
-                Seleccionar Rango
-              </Text>
-              <TouchableOpacity onPress={() => setShowCustomModal(false)}>
-                <Ionicons name="close-circle-outline" size={28} color="#8B5A3C" />
-              </TouchableOpacity>
-            </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          className="flex-1"
+          keyboardVerticalOffset={0}
+        >
+          <View className="flex-1 bg-black/50 justify-center items-center px-4">
+            <View 
+              className="bg-[#F6EBD7] rounded-2xl w-full max-w-md"
+              style={{ maxHeight: '80%' }}
+            >
+              <View className="flex-row justify-between items-center p-4 border-b border-[#E5E5E5]">
+                <Text className="text-xl font-poppins-bold text-[#402612]">
+                  Seleccionar Rango
+                </Text>
+                <TouchableOpacity onPress={() => setShowCustomModal(false)}>
+                  <Ionicons name="close-circle-outline" size={28} color="#8B5A3C" />
+                </TouchableOpacity>
+              </View>
 
-            {/* Fecha Desde */}
-            <View className="mb-4">
-              <Text className="text-sm font-poppins-semibold text-[#402612] mb-2">
-                Desde (dd/mm/aaaa)
-              </Text>
-              <TextInput
-                value={startDateText}
-                onChangeText={setStartDateText}
-                placeholder="01/01/2024"
-                placeholderTextColor="#8B5A3C80"
-                className="bg-white border border-[#8B5A3C] rounded-xl px-4 py-3 text-base font-poppins-regular text-[#402612]"
-                keyboardType="numbers-and-punctuation"
-                maxLength={10}
-              />
-            </View>
+              <ScrollView 
+                className="p-4"
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ paddingBottom: 10 }}
+              >
+                {/* Fecha Desde */}
+                <View className="mb-4">
+                  <Text className="text-sm font-poppins-semibold text-[#402612] mb-2">
+                    Desde (dd/mm/aaaa)
+                  </Text>
+                  <TextInput
+                    value={startDateText}
+                    onChangeText={setStartDateText}
+                    placeholder="01/01/2024"
+                    placeholderTextColor="#8B5A3C80"
+                    className="bg-white border border-[#8B5A3C] rounded-xl px-4 py-3 text-base font-poppins-regular text-[#402612]"
+                    keyboardType="number-pad"
+                    maxLength={10}
+                  />
+                </View>
 
-            {/* Fecha Hasta */}
-            <View className="mb-6">
-              <Text className="text-sm font-poppins-semibold text-[#402612] mb-2">
-                Hasta (dd/mm/aaaa)
-              </Text>
-              <TextInput
-                value={endDateText}
-                onChangeText={setEndDateText}
-                placeholder="31/12/2024"
-                placeholderTextColor="#8B5A3C80"
-                className="bg-white border border-[#8B5A3C] rounded-xl px-4 py-3 text-base font-poppins-regular text-[#402612]"
-                keyboardType="numbers-and-punctuation"
-                maxLength={10}
-              />
-            </View>
+                {/* Fecha Hasta */}
+                <View className="mb-4">
+                  <Text className="text-sm font-poppins-semibold text-[#402612] mb-2">
+                    Hasta (dd/mm/aaaa)
+                  </Text>
+                  <TextInput
+                    value={endDateText}
+                    onChangeText={setEndDateText}
+                    placeholder="31/12/2024"
+                    placeholderTextColor="#8B5A3C80"
+                    className="bg-white border border-[#8B5A3C] rounded-xl px-4 py-3 text-base font-poppins-regular text-[#402612]"
+                    keyboardType="number-pad"
+                    maxLength={10}
+                  />
+                </View>
 
-            {/* Atajos rápidos */}
-            <Text className="text-sm font-poppins-semibold text-[#8B5A3C] mb-3">
-              Atajos rápidos
-            </Text>
-            <View className="flex-row flex-wrap gap-2 mb-6">
-              <TouchableOpacity
-                onPress={() => handleQuickDate(7)}
-                className="bg-white border border-[#8B5A3C] rounded-lg px-3 py-2"
-              >
-                <Text className="text-sm font-poppins-regular text-[#402612]">
-                  Últimos 7 días
+                {/* Atajos rápidos */}
+                <Text className="text-sm font-poppins-semibold text-[#8B5A3C] mb-3">
+                  Atajos rápidos
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleQuickDate(30)}
-                className="bg-white border border-[#8B5A3C] rounded-lg px-3 py-2"
-              >
-                <Text className="text-sm font-poppins-regular text-[#402612]">
-                  Últimos 30 días
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleQuickMonths(3)}
-                className="bg-white border border-[#8B5A3C] rounded-lg px-3 py-2"
-              >
-                <Text className="text-sm font-poppins-regular text-[#402612]">
-                  Últimos 3 meses
-                </Text>
-              </TouchableOpacity>
-            </View>
+                <View className="flex-row flex-wrap gap-2 mb-4">
+                  <TouchableOpacity
+                    onPress={() => handleQuickDate(7)}
+                    className="bg-white border border-[#8B5A3C] rounded-lg px-3 py-2"
+                  >
+                    <Text className="text-sm font-poppins-regular text-[#402612]">
+                      Últimos 7 días
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleQuickDate(30)}
+                    className="bg-white border border-[#8B5A3C] rounded-lg px-3 py-2"
+                  >
+                    <Text className="text-sm font-poppins-regular text-[#402612]">
+                      Últimos 30 días
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleQuickMonths(3)}
+                    className="bg-white border border-[#8B5A3C] rounded-lg px-3 py-2"
+                  >
+                    <Text className="text-sm font-poppins-regular text-[#402612]">
+                      Últimos 3 meses
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
 
-            {/* Botones */}
-            <View className="flex-row gap-3">
-              <TouchableOpacity
-                onPress={() => setShowCustomModal(false)}
-                className="flex-1 bg-white border border-[#8B5A3C] rounded-xl py-3"
-              >
-                <Text className="text-center text-[#402612] font-poppins-semibold">
-                  Cancelar
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleApplyCustom}
-                className="flex-1 bg-[#402612] rounded-xl py-3"
-              >
-                <Text className="text-center text-[#F6EBD7] font-poppins-semibold">
-                  Aplicar
-                </Text>
-              </TouchableOpacity>
+              {/* Botones - Fijos en la parte inferior */}
+              <View className="flex-row gap-3 p-4 border-t border-[#E5E5E5]">
+                <TouchableOpacity
+                  onPress={() => setShowCustomModal(false)}
+                  className="flex-1 bg-white border border-[#8B5A3C] rounded-xl py-3"
+                >
+                  <Text className="text-center text-[#402612] font-poppins-semibold">
+                    Cancelar
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleApplyCustom}
+                  className="flex-1 bg-[#402612] rounded-xl py-3"
+                >
+                  <Text className="text-center text-[#F6EBD7] font-poppins-semibold">
+                    Aplicar
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );

@@ -18,6 +18,7 @@ import { useCobros } from '@/contexts/CobrosContext';
 import { useVentas } from '@/contexts/VentasContext';
 import { clienteService } from '@/services/clienteService';
 import { validateDecimalInput } from '@/utils/validation';
+import { getLocalDateTimeForServer } from '@/utils/dateUtils';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -278,7 +279,7 @@ export default function NuevaVentaScreen() {
       const ventaData: any = {
         total,
         tipo_pago: tipoVenta,
-        fecha: new Date().toISOString(), // Fecha local del móvil
+        fecha: getLocalDateTimeForServer(), // Fecha y hora local del móvil
         detalle,
       };
 

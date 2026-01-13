@@ -11,11 +11,20 @@ export interface CobroFilters {
   fecha_hasta?: string;
 }
 
+export interface DetalleCobroInput {
+  nombreproducto: string;
+  cantidad: number;
+  peso?: number;
+  unidadmedida?: string;
+  precio: number;
+}
+
 export interface CobroCreateData {
   clienteid: number;
   total: number;
   fecha_vencimiento?: string;
   notas?: string;
+  detalles?: DetalleCobroInput[];
 }
 
 export interface CobroResumen {

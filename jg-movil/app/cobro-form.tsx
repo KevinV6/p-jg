@@ -197,11 +197,23 @@ export default function CobroFormScreen() {
 
       const total = calcularTotal();
 
+      // Construir detalles del cobro desde el carrito
+      const detalles = carrito.map((item) => ({
+        nombreproducto: item.opcionvariante 
+          ? `${item.producto?.nombreproducto} - ${item.opcionvariante.nombreopcionvariante}`
+          : item.producto?.nombreproducto || 'Producto',
+        cantidad: item.cantidad,
+        peso: item.cantidad,
+        unidadmedida: item.productounidad?.unidad?.abreviatura || 'und',
+        precio: item.precio,
+      }));
+
       const cobroData = {
         clienteid: idClienteFinal,
         total,
         fecha_vencimiento: fechaVencimiento || undefined,
         notas: notas || undefined,
+        detalles, // Incluir detalles del carrito
       };
 
       console.log('[CobroForm] Datos de cobro a enviar:', JSON.stringify(cobroData, null, 2));

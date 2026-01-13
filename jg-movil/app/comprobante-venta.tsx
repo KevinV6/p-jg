@@ -95,7 +95,7 @@ export default function ComprobanteVentaScreen() {
   
   const comprobanteData = {
     folio: folioVenta,
-    fecha: new Date(), // Usar fecha actual del móvil
+    fecha: new Date(venta.fecha), // Usar la fecha guardada en la BD
     cliente: venta.cliente?.nombrecliente || 'Sin Nombre',
     tipo_pago: venta.tipo_pago,
     vendedor: venta.usuario ? `${venta.usuario.primernombre || ''} ${venta.usuario.apellidopaterno || ''}`.trim() : undefined,
