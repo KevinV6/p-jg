@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
+import NetInfo from '@react-native-community/netinfo';
 import { useAuth } from './AuthContext';
 import { useVentas } from './VentasContext';
 import { useCobros } from './CobrosContext';
@@ -9,6 +10,7 @@ interface AppDataContextData {
   isLoadingData: boolean;
   refreshAllData: () => Promise<void>;
   lastRefresh: Date | null;
+  isConnected: boolean;
 }
 
 const AppDataContext = createContext<AppDataContextData>({} as AppDataContextData);
@@ -23,6 +25,8 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [previousAuthState, setPreviousAuthState] = useState<boolean | null>(null);
+  const [isConnected, setIsConnected] = useState(true);
+  const wasConnected = useRef(true);
 
   // Función para cargar todos los datos
   const loadAllData = useCallback(async () => {
@@ -109,6 +113,29 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [authLoading, isAuthenticated, user, isDataLoaded, isLoadingData, loadAllData]);
 
+  // Escuchar cambios de conexión para recargar datos automáticamente
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      const currentlyConnected = state.isConnected && state.isInternetReachable !== false;
+      setIsConnected(currentlyConnected || false);
+      
+      // Si recuperamos la conexión y estamos autenticados, recargar datos
+      if (!wasConnected.current && currentlyConnected && isAuthenticated && user) {
+        console.log('[AppDataContext] 🌐 Conexión recuperada, recargando datos...');
+        // Pequeño delay para asegurar que la conexión esté estable
+        setTimeout(() => {
+          loadAllData();
+        }, 1000);
+      }
+      
+      wasConnected.current = currentlyConnected || false;
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [isAuthenticated, user, loadAllData]);
+
   return (
     <AppDataContext.Provider
       value={{
@@ -116,6 +143,7 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
         isLoadingData,
         refreshAllData,
         lastRefresh,
+        isConnected,
       }}
     >
       {children}

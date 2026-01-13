@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import React from 'react';
 import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface CobroDetalleModalProps {
   visible: boolean;
@@ -19,6 +20,9 @@ export const CobroDetalleModal: React.FC<CobroDetalleModalProps> = ({
   onMarcarPagado,
   onVerComprobante,
 }) => {
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, 16);
+  
   if (!cobro) return null;
 
   const getEstadoConfig = (estado: number) => {
@@ -48,6 +52,7 @@ export const CobroDetalleModal: React.FC<CobroDetalleModalProps> = ({
         <View
           className="bg-[#F6EBD7] rounded-t-3xl max-h-[85%]"
           style={{
+            paddingBottom: bottomPadding,
             shadowColor: '#402612',
             shadowOffset: { width: 0, height: -4 },
             shadowOpacity: 0.15,

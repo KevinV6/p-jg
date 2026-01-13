@@ -169,6 +169,9 @@ const create = async (req, res) => {
   try {
     const { 
       clienteid,
+      total: totalRecibido,
+      fecha_vencimiento,
+      notas,
       nombrecobro,
       telefono,
       observacion,
@@ -176,13 +179,20 @@ const create = async (req, res) => {
       detalles = []
     } = req.body;
 
+    console.log('[CobroController] Datos recibidos:', { clienteid, totalRecibido, fecha_vencimiento, notas, detallesCount: detalles.length });
+
     // Validar campos
     if (!clienteid && !nombrecobro) {
       return errorResponse(res, 'Debe seleccionar un cliente o proporcionar un nombre', 400);
     }
 
-    if (detalles.length === 0) {
-      return errorResponse(res, 'Debe agregar al menos un producto', 400);
+    // Si se envía total directamente (cobro simple sin detalles), usarlo
+    // Si se envían detalles, calcular el total
+    let total = totalRecibido;
+    if (detalles.length > 0) {
+      total = detalles.reduce((sum, d) => sum + (d.cantidad * d.precio), 0);
+    } else if (!total) {
+      return errorResponse(res, 'Debe proporcionar un total o agregar productos', 400);
     }
 
     const supabase = getAdminConnection();
@@ -204,24 +214,30 @@ const create = async (req, res) => {
       }
     }
 
-    // Calcular total
-    const total = detalles.reduce((sum, d) => sum + (d.cantidad * d.precio), 0);
+    // Calcular total si viene de detalles
+    if (detalles.length > 0 && !totalRecibido) {
+      total = detalles.reduce((sum, d) => sum + (d.cantidad * d.precio), 0);
+    }
 
     // Crear cobro
+    const cobroInsertData = {
+      clienteid: clienteid ? Number(clienteid) : null,
+      ventaid: null, // Manual, no viene de venta
+      origen: 'manual',
+      total,
+      observacion: observacion || notas || null, // Usar notas si no hay observacion
+      estado: 1,
+      usuarioid: req.user.idusuario,
+      fecha_vencimiento: fecha_vencimiento || null,
+      notas: notas || null
+      // fecha se genera automáticamente por la BD con DEFAULT NOW()
+    };
+
+    console.log('[CobroController] Datos a insertar:', cobroInsertData);
+
     const { data: cobro, error: cobroError } = await supabase
       .from('cobros')
-      .insert({
-        clienteid: clienteid ? Number(clienteid) : null,
-        ventaid: null, // Manual, no viene de venta
-        origen: 'manual',
-        nombrecobro: nombreCliente,
-        telefono: telefonoCliente || '',
-        total,
-        observacion,
-        estado: 1,
-        usuarioid: req.user.idusuario,
-        imagen: imagen || ''
-      })
+      .insert(cobroInsertData)
       .select()
       .single();
 
@@ -230,24 +246,41 @@ const create = async (req, res) => {
       return errorResponse(res, 'Error al crear cobro', 500);
     }
 
-    // Crear detalles
-    const detallesData = detalles.map(d => ({
-      cobroid: cobro.idcobro,
-      nombreproducto: d.nombreproducto,
-      cantidad: d.cantidad,
-      peso: d.peso || d.cantidad,
-      unidadmedida: d.unidadmedida || 'und',
-      precio: d.precio,
-      estado: 1,
-      usuarioid: req.user.idusuario
-    }));
+    console.log('[CobroController] Cobro creado:', cobro);
 
-    const { error: detallesError } = await supabase
-      .from('detalle_cobro')
-      .insert(detallesData);
+    // Crear detalles si se proporcionan
+    if (detalles && detalles.length > 0) {
+      const detallesData = detalles.map(d => ({
+        cobroid: cobro.idcobro,
+        nombreproducto: d.nombreproducto,
+        cantidad: d.cantidad,
+        peso: d.peso || d.cantidad,
+        unidadmedida: d.unidadmedida || 'und',
+        precio: d.precio,
+        estado: 1,
+        usuarioid: req.user.idusuario
+      }));
 
-    if (detallesError) {
-      console.error('Error creando detalles:', detallesError);
+      const { error: detallesError } = await supabase
+        .from('detalle_cobro')
+        .insert(detallesData);
+
+      if (detallesError) {
+        console.error('Error creando detalles:', detallesError);
+      }
+    }
+
+    // Obtener nombre del cliente para la notificación
+    let nombreClienteNotif = 'Cliente';
+    if (clienteid) {
+      const { data: cliente } = await supabase
+        .from('cliente')
+        .select('nombrecliente')
+        .eq('idcliente', clienteid)
+        .single();
+      if (cliente) {
+        nombreClienteNotif = cliente.nombrecliente;
+      }
     }
 
     // Crear notificación
@@ -255,7 +288,7 @@ const create = async (req, res) => {
       usuarioid: req.user.idusuario,
       tipo: 'cobro_nuevo',
       titulo: 'Nuevo cobro creado',
-      mensaje: `Se creó un cobro manual de Bs. ${total.toFixed(2)} para ${nombreCliente}`,
+      mensaje: `Se creó un cobro manual de Bs. ${total.toFixed(2)} para ${nombreClienteNotif}`,
       referencia_tipo: 'cobro',
       referencia_id: cobro.idcobro,
       estado: 1
@@ -372,14 +405,11 @@ const marcarPagado = async (req, res) => {
       return errorResponse(res, 'El cobro no está pendiente', 400);
     }
 
-    const fechaPago = new Date().toISOString();
-
-    // Actualizar estado del cobro
+    // Actualizar estado del cobro - PostgreSQL maneja NOW() para la fecha
     const { error: updateError } = await supabase
       .from('cobros')
       .update({ 
-        estado: 2, // Pagado
-        fechapago: fechaPago
+        estado: 2 // Pagado - fechapago se actualiza automáticamente por la BD
       })
       .eq('idcobro', id);
 

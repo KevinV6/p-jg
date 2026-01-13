@@ -8,6 +8,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ComprobanteItem {
   producto: string;
@@ -45,6 +46,9 @@ export default function ComprobanteModal({
   folio,
   telefono,
 }: ComprobanteProps) {
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, 16);
+  
   const formatFecha = (date: Date) => {
     return date.toLocaleDateString('es-ES', {
       day: '2-digit',
@@ -165,7 +169,10 @@ export default function ComprobanteModal({
         </ScrollView>
 
         {/* Botones */}
-        <View className="px-4 pb-8 pt-4 bg-white border-t border-gray-200">
+        <View 
+          className="px-4 pt-4 bg-white border-t border-gray-200"
+          style={{ paddingBottom: Math.max(bottomPadding, 32) }}
+        >
           <TouchableOpacity
             onPress={onNavigate}
             className="bg-[#402612] rounded-xl py-4 flex-row items-center justify-center mb-3"

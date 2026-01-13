@@ -6,13 +6,16 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {
     FlatList,
     Image,
+    KeyboardAvoidingView,
     Modal,
+    Platform,
     ScrollView,
     Text,
     TextInput,
     TouchableOpacity,
     View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export interface ItemCarrito {
   idproducto: number;
@@ -45,6 +48,8 @@ export default function ProductSelector({
   showInternalTotal = true, // Por defecto mostrar el total
 }: ProductSelectorProps) {
   const { productos } = useInventario();
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, 16);
 
   const [showProductSelector, setShowProductSelector] = useState(false);
   const [showVariantSelector, setShowVariantSelector] = useState(false);
@@ -468,75 +473,89 @@ export default function ProductSelector({
           setSearchQuery('');
         }}
       >
-        <View className="flex-1 bg-black/50 justify-end">
-          <View className="bg-[#F6EBD7] rounded-t-3xl max-h-[80%]">
-            <View className="bg-[#402612] rounded-t-3xl px-4 py-4 flex-row items-center justify-between">
-              <Text className="text-xl font-poppins-bold text-[#F6EBD7]">
-                Seleccionar Producto
-              </Text>
-              <TouchableOpacity onPress={() => {
-                setShowProductSelector(false);
-                setSearchQuery('');
-              }}>
-                <Ionicons name="close" size={28} color="#F6EBD7" />
-              </TouchableOpacity>
-            </View>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          className="flex-1"
+          keyboardVerticalOffset={0}
+        >
+          <View className="flex-1 bg-black/50 justify-end">
+            <View 
+              className="bg-[#F6EBD7] rounded-t-3xl"
+              style={{ 
+                paddingBottom: bottomPadding,
+                maxHeight: '85%',
+                minHeight: '50%'
+              }}
+            >
+              <View className="bg-[#402612] rounded-t-3xl px-4 py-4 flex-row items-center justify-between">
+                <Text className="text-xl font-poppins-bold text-[#F6EBD7]">
+                  Seleccionar Producto
+                </Text>
+                <TouchableOpacity onPress={() => {
+                  setShowProductSelector(false);
+                  setSearchQuery('');
+                }}>
+                  <Ionicons name="close" size={28} color="#F6EBD7" />
+                </TouchableOpacity>
+              </View>
 
-            {/* Buscador de productos */}
-            <View className="px-4 py-3 bg-white border-b border-gray-200">
-              <View className="flex-row items-center bg-[#F6EBD7] rounded-xl px-4 py-2">
-                <Ionicons name="search" size={20} color="#8B5A3C" />
-                <TextInput
-                  className="flex-1 ml-2 text-base font-poppins-regular text-[#402612]"
-                  placeholder="Buscar producto..."
-                  placeholderTextColor="#8B5A3C"
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
+              {/* Buscador de productos */}
+              <View className="px-4 py-3 bg-white border-b border-gray-200">
+                <View className="flex-row items-center bg-[#F6EBD7] rounded-xl px-4 py-2">
+                  <Ionicons name="search" size={20} color="#8B5A3C" />
+                  <TextInput
+                    className="flex-1 ml-2 text-base font-poppins-regular text-[#402612]"
+                    placeholder="Buscar producto..."
+                    placeholderTextColor="#8B5A3C"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                  {searchQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => setSearchQuery('')}>
+                      <Ionicons name="close-circle" size={20} color="#8B5A3C" />
+                    </TouchableOpacity>
+                  )}
+                </View>
                 {searchQuery.length > 0 && (
-                  <TouchableOpacity onPress={() => setSearchQuery('')}>
-                    <Ionicons name="close-circle" size={20} color="#8B5A3C" />
-                  </TouchableOpacity>
+                  <Text className="text-xs font-poppins-regular text-[#8B5A3C] mt-2">
+                    {productosFiltrados.length} producto{productosFiltrados.length !== 1 ? 's' : ''} encontrado{productosFiltrados.length !== 1 ? 's' : ''}
+                  </Text>
                 )}
               </View>
-              {searchQuery.length > 0 && (
-                <Text className="text-xs font-poppins-regular text-[#8B5A3C] mt-2">
-                  {productosFiltrados.length} producto{productosFiltrados.length !== 1 ? 's' : ''} encontrado{productosFiltrados.length !== 1 ? 's' : ''}
-                </Text>
-              )}
-            </View>
 
-            <FlatList
-              data={productosFiltrados}
-              keyExtractor={(item) => item.idproducto.toString()}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  onPress={() => handleSelectProduct(item)}
-                  className="bg-white mx-4 my-2 rounded-xl p-3 flex-row items-center border border-[#E5E5E5]"
-                >
-                  {item.imagen && (
-                    <Image
-                      source={{ uri: item.imagen }}
-                      className="w-16 h-16 rounded-lg mr-3"
-                    />
-                  )}
-                  <View className="flex-1">
-                    <Text className="text-base font-poppins-semibold text-[#402612]">
-                      {item.nombreproducto}
-                    </Text>
-                    <Text className="text-sm font-poppins-regular text-[#8B5A3C]">
-                      {item.categoria?.nombrecategoria}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color="#8B5A3C" />
-                </TouchableOpacity>
-              )}
-              contentContainerStyle={{ paddingBottom: 20, paddingTop: 10 }}
-            />
+              <FlatList
+                data={productosFiltrados}
+                keyExtractor={(item) => item.idproducto.toString()}
+                keyboardShouldPersistTaps="handled"
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    onPress={() => handleSelectProduct(item)}
+                    className="bg-white mx-4 my-2 rounded-xl p-3 flex-row items-center border border-[#E5E5E5]"
+                  >
+                    {item.imagen && (
+                      <Image
+                        source={{ uri: item.imagen }}
+                        className="w-16 h-16 rounded-lg mr-3"
+                      />
+                    )}
+                    <View className="flex-1">
+                      <Text className="text-base font-poppins-semibold text-[#402612]">
+                        {item.nombreproducto}
+                      </Text>
+                      <Text className="text-sm font-poppins-regular text-[#8B5A3C]">
+                        {item.categoria?.nombrecategoria}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#8B5A3C" />
+                  </TouchableOpacity>
+                )}
+                contentContainerStyle={{ paddingBottom: 20, paddingTop: 10 }}
+              />
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Modal Selector de Variantes */}
@@ -547,7 +566,10 @@ export default function ProductSelector({
         onRequestClose={() => setShowVariantSelector(false)}
       >
         <View className="flex-1 bg-black/50 justify-end">
-          <View className="bg-[#F6EBD7] rounded-t-3xl max-h-[60%]">
+          <View 
+            className="bg-[#F6EBD7] rounded-t-3xl max-h-[60%]"
+            style={{ paddingBottom: bottomPadding }}
+          >
             <View className="bg-[#402612] rounded-t-3xl px-4 py-4 flex-row items-center justify-between">
               <Text className="text-xl font-poppins-bold text-[#F6EBD7]">
                 Seleccionar Variante

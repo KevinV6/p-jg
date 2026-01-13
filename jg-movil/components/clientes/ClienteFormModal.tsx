@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Text,
@@ -10,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Cliente } from './ClienteCard';
 
 export interface ClienteFormData {
@@ -38,6 +40,9 @@ export function ClienteFormModal({
   setFormData,
   saving,
 }: ClienteFormModalProps) {
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, 24);
+
   return (
     <Modal
       visible={visible}
@@ -45,28 +50,36 @@ export function ClienteFormModal({
       transparent
       onRequestClose={() => !saving && onClose()}
     >
-      <View className="flex-1 bg-black/50 justify-end">
-        <View className="bg-[#F6EBD7] rounded-t-3xl max-h-[90%]">
-          {/* Header del modal */}
-          <View className="bg-[#402612] rounded-t-3xl px-4 py-4 flex-row items-center justify-between">
-            <Text className="text-lg font-poppins-bold text-[#F6EBD7]">
-              {editingCliente ? 'Editar Cliente' : 'Nuevo Cliente'}
-            </Text>
-            <TouchableOpacity onPress={() => !saving && onClose()}>
-              <Ionicons name="close" size={24} color="#F6EBD7" />
-            </TouchableOpacity>
-          </View>
-
-          <KeyboardAwareScrollView
-            className="p-4"
-            keyboardShouldPersistTaps="handled"
-            enableOnAndroid={true}
-            enableAutomaticScroll={true}
-            extraScrollHeight={Platform.OS === 'android' ? 150 : 100}
-            extraHeight={Platform.OS === 'android' ? 150 : 100}
-            enableResetScrollToCoords={false}
-            contentContainerStyle={{ paddingBottom: 20 }}
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        className="flex-1"
+        keyboardVerticalOffset={0}
+      >
+        <View className="flex-1 bg-black/50 justify-center px-4">
+          <View 
+            className="bg-[#F6EBD7] rounded-2xl max-h-[85%]"
+            style={{ marginBottom: bottomPadding }}
           >
+            {/* Header del modal */}
+            <View className="bg-[#402612] rounded-t-2xl px-4 py-4 flex-row items-center justify-between">
+              <Text className="text-lg font-poppins-bold text-[#F6EBD7]">
+                {editingCliente ? 'Editar Cliente' : 'Nuevo Cliente'}
+              </Text>
+              <TouchableOpacity onPress={() => !saving && onClose()}>
+                <Ionicons name="close" size={24} color="#F6EBD7" />
+              </TouchableOpacity>
+            </View>
+
+            <KeyboardAwareScrollView
+              className="p-4"
+              keyboardShouldPersistTaps="handled"
+              enableOnAndroid={true}
+              enableAutomaticScroll={true}
+              extraScrollHeight={Platform.OS === 'android' ? 120 : 80}
+              extraHeight={Platform.OS === 'android' ? 120 : 80}
+              enableResetScrollToCoords={false}
+              contentContainerStyle={{ paddingBottom: 10 }}
+            >
             {/* Nombre */}
             <View className="mb-4">
               <Text className="text-sm font-poppins-semibold text-[#402612] mb-2">
@@ -130,7 +143,7 @@ export function ClienteFormModal({
             <TouchableOpacity
               onPress={onSave}
               disabled={saving}
-              className={`rounded-xl py-4 flex-row items-center justify-center mb-6 ${saving ? 'bg-[#8B5A3C]/50' : 'bg-[#402612]'
+              className={`rounded-xl py-4 flex-row items-center justify-center mb-4 ${saving ? 'bg-[#8B5A3C]/50' : 'bg-[#402612]'
                 }`}
             >
               {saving ? (
@@ -147,6 +160,7 @@ export function ClienteFormModal({
           </KeyboardAwareScrollView>
         </View>
       </View>
+    </KeyboardAvoidingView>
     </Modal>
   );
 }

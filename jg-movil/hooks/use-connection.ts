@@ -83,22 +83,28 @@ class ConnectionManager {
     
     // Throttle: solo verificar si pasó suficiente tiempo o es forzado
     if (!force && now - this.lastCheckTime < this.MIN_CHECK_INTERVAL) {
+      console.log('[Connection] Throttled - usando estado actual:', this.isFullyConnected());
       return this.isFullyConnected();
     }
 
     if (this.isChecking) {
+      console.log('[Connection] Ya hay una verificación en progreso');
       return this.isFullyConnected();
     }
 
     this.isChecking = true;
     this.lastCheckTime = now;
+    console.log('[Connection] 🔄 Iniciando verificación de conexión...');
 
     try {
       // Verificar internet
+      console.log('[Connection] Verificando estado de red...');
       const netState = await NetInfo.fetch();
       const hasInternet = netState.isConnected && netState.isInternetReachable !== false;
+      console.log('[Connection] Estado de red:', { isConnected: netState.isConnected, isInternetReachable: netState.isInternetReachable, hasInternet });
 
       if (!hasInternet) {
+        console.log('[Connection] ❌ Sin conexión a Internet');
         this.updateState({
           isConnected: false,
           isInternetReachable: false,
@@ -111,7 +117,9 @@ class ConnectionManager {
       }
 
       // Verificar base de datos
+      console.log('[Connection] Verificando conexión a base de datos...');
       const dbConnected = await this.checkDatabaseConnection();
+      console.log('[Connection] Base de datos:', dbConnected ? '✅ Conectada' : '❌ Sin conexión');
       
       this.updateState({
         isConnected: netState.isConnected || false,
@@ -121,12 +129,15 @@ class ConnectionManager {
         error: dbConnected ? null : 'No se puede conectar al servidor',
       });
 
+      const fullyConnected = hasInternet && dbConnected;
+      console.log('[Connection] Resultado final:', fullyConnected ? '✅ Completamente conectado' : '⚠️ Conexión parcial o sin conexión');
+
       if (!dbConnected) {
         console.log('[Connection] ⚠️ Sin conexión a la base de datos');
       }
 
       this.isChecking = false;
-      return hasInternet && dbConnected;
+      return fullyConnected;
     } catch (error) {
       this.updateState({
         lastChecked: new Date(),
@@ -206,15 +217,28 @@ export const useConnection = () => {
   }, []);
 
   const checkConnection = useCallback(async () => {
+    console.log('[useConnection] Iniciando verificación de conexión...');
     setIsChecking(true);
-    const result = await manager.checkConnection(true);
-    setIsChecking(false);
-    return result;
+    try {
+      const result = await manager.checkConnection(true);
+      console.log('[useConnection] Resultado de verificación:', result);
+      // Forzar actualización del estado local después de la verificación
+      setConnectionState(manager.getState());
+      return result;
+    } catch (error) {
+      console.error('[useConnection] Error en verificación:', error);
+      return false;
+    } finally {
+      setIsChecking(false);
+    }
   }, []);
+
+  // Calcular isFullyConnected desde el estado local, no del manager directamente
+  const isFullyConnected = connectionState.isConnected && connectionState.isDatabaseConnected;
 
   return {
     ...connectionState,
-    isFullyConnected: manager.isFullyConnected(),
+    isFullyConnected,
     checkConnection,
     isChecking,
   };

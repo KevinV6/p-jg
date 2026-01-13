@@ -355,7 +355,7 @@ const create = async (req, res) => {
 
     // Crear venta
     const ventaData = {
-      fecha: fecha ? new Date(fecha).toISOString() : new Date().toISOString(), // Usar fecha del cliente o servidor
+      fecha: fecha || new Date().toISOString(), // Usar fecha del cliente tal cual viene
       clienteid: Number(idClienteFinal),
       usuarioid: req.user.idusuario,
       total: totalCalculado,
